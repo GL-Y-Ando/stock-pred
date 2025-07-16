@@ -1,0 +1,16 @@
+services:
+  python-dev:
+    build: .
+    container_name: python-dev-container
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./notebooks:/app/notebooks
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    ports:
+      - "8888:8888"  # For Jupyter notebook (optional)
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: tail -f /dev/null  # Keeps container running
