@@ -31,11 +31,13 @@ RUN mkdir -p /app/src \
 
 # Copy the stock prediction system files
 COPY src/ /app/src/
-COPY *.py /app/src/ 2>/dev/null || true
 
-# Copy configuration files
-COPY config.json /app/ 2>/dev/null || true
-COPY .env /app/ 2>/dev/null || true
+# Create default config files if they don't exist
+RUN touch /app/config.json /app/.env
+
+# Copy configuration files if they exist (will overwrite the empty files)
+COPY config.json /app/config.json
+COPY .env /app/.env
 
 # Set Python path to include src directory
 ENV PYTHONPATH=/app/src:$PYTHONPATH
