@@ -20,6 +20,7 @@ if not refreshtoken:
 
 # Create data directory if it doesn't exist
 data_dir = Path("/app/data")
+price_data_dir = Path("/app/data/price_data")
 data_dir.mkdir(exist_ok=True)
 
 # idToken取得
