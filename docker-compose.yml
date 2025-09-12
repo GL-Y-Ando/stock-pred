@@ -13,4 +13,6 @@ services:
       - "8888:8888"  # For Jupyter notebook (optional)
     environment:
       - PYTHONUNBUFFERED=1
+    env_file:
+      - .env  # Load environment variables from .env file
     command: tail -f /dev/null  # Keeps container running
