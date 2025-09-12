@@ -69,7 +69,7 @@ print("\nFetching daily quotes for each company...")
 unique_codes = list_df["Code"].unique()
 
 # Testing mode - only process first 5 companies
-if True:  # Change to False when ready for full run
+if False:  # Change to False when ready for full run
     unique_codes = unique_codes[:5]
     print(f"Testing mode: Processing only {len(unique_codes)} companies")
 
