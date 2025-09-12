@@ -46,6 +46,7 @@ ENV PYTHONUNBUFFERED=1
 # Create a non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 RUN chown -R appuser:appuser /app
+RUN chmod -R 755 /app
 USER appuser
 
 # Default command (can be overridden)
