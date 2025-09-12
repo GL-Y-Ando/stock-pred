@@ -3,6 +3,7 @@ import sys
 import os
 import requests
 import datetime
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -73,6 +74,7 @@ if True:  # Change to False when ready for full run
     print(f"Testing mode: Processing only {len(unique_codes)} companies")
 
 for i, code in enumerate(unique_codes, 1):
+    time.sleep(0.3)
     print(f"Processing {code} ({i}/{len(unique_codes)})")
     
     params = {"code": code}

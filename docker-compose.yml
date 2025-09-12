@@ -1,18 +1,63 @@
+version: '3.8'
+
 services:
-  python-dev:
+  stock-prediction:
     build: .
-    container_name: python-dev-container
+    container_name: stock-prediction-system
     volumes:
+      # Mount source code for development
       - ./src:/app/src
       - ./data:/app/data
       - ./notebooks:/app/notebooks
+      
+      # Persistent storage for models, outputs, and logs
+      - ./models:/app/models
+      - ./output:/app/output
+      - ./logs:/app/logs
+      - ./processed_data:/app/processed_data
+      - ./cache:/app/cache
+      
+      # Configuration files
+      - ./config.json:/app/config.json
+      - ./.env:/app/.env
+    
     working_dir: /app
     stdin_open: true
     tty: true
+    
     ports:
-      - "8888:8888"  # For Jupyter notebook (optional)
+      - "8888:8888"  # For Jupyter notebook
+      - "6006:6006"  # For TensorBoard (optional)
+    
     environment:
       - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app/src
+      - TF_CPP_MIN_LOG_LEVEL=2  # Reduce TensorFlow logs
+    
     env_file:
       - .env  # Load environment variables from .env file
-    command: tail -f /dev/null  # Keeps container running
+    
+    # Keep container running for interactive use
+    command: tail -f /dev/null
+    
+    # Optional: GPU support (uncomment if you have NVIDIA GPU)
+    # runtime: nvidia
+    # environment:
+    #   - NVIDIA_VISIBLE_DEVICES=all
+
+  # Optional: Database service for storing predictions
+  # postgres:
+  #   image: postgres:15
+  #   container_name: stock-prediction-db
+  #   environment:
+  #     POSTGRES_DB: stockdb
+  #     POSTGRES_USER: stockuser
+  #     POSTGRES_PASSWORD: stockpass
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+# Optional: Named volumes for persistent data
+# volumes:
+#   postgres_data:

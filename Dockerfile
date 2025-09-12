@@ -3,26 +3,48 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies for ML libraries
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    libhdf5-dev \
+    pkg-config \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
 COPY requirements.txt .
 
 # Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create directories for organized development
-RUN mkdir -p /app/src /app/data /app/notebooks
+# Create directories for the stock prediction system
+RUN mkdir -p /app/src \
+             /app/data/price_data \
+             /app/models \
+             /app/output \
+             /app/logs \
+             /app/processed_data \
+             /app/cache \
+             /app/notebooks
 
-# Copy project files
-COPY . .
+# Copy the stock prediction system files
+COPY src/ /app/src/
+COPY *.py /app/src/ 2>/dev/null || true
 
-# Set Python path
+# Copy configuration files
+COPY config.json /app/ 2>/dev/null || true
+COPY .env /app/ 2>/dev/null || true
+
+# Set Python path to include src directory
 ENV PYTHONPATH=/app/src:$PYTHONPATH
+ENV PYTHONUNBUFFERED=1
 
-# Default command
-CMD ["python"]
+# Create a non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
+# Default command (can be overridden)
+CMD ["python", "/app/src/main.py", "--help"]
