@@ -93,7 +93,7 @@ for i, code in enumerate(unique_codes, 1):
         df = pd.DataFrame(data)
         
         # Save to data directory with proper filename
-        csv_path = data_dir / f"{code}.csv"
+        csv_path = price_data_dir / f"{code}.csv"
         df.to_csv(csv_path, index=False)
         print(f"  Saved {len(df)} records to: {csv_path}")
     else:
