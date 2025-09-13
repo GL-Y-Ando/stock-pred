@@ -30,7 +30,6 @@ from model_trainer import ModelTrainer
 from predictor import Predictor
 from trend_analyzer import TrendAnalyzer
 from config import Config
-from src.system import StockPredictionSystem
 
 # Configure logging
 logging.basicConfig(
@@ -298,15 +297,8 @@ def setup_logging(log_level: str) -> None:
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
-
-# Add src directory to Python path for imports
+    
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
-
-from src.data_manager import DataManager
-from src.model_trainer import ModelTrainer
-from src.predictor import Predictor
-from src.trend_analyzer import TrendAnalyzer
-from src.config import Config
 
 class StockPredictionSystem:
     """
