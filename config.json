@@ -13,17 +13,17 @@
     "lookback_period": 60,
     "hidden_layers": [64, 32, 16],
     "learning_rate": 0.001,
-    "epochs": 100,
+    "epochs": 60,
     "batch_size": 32
   },
   "prediction": {
     "confidence_threshold": 0.7,
-    "ensemble_size": 5
+    "ensemble_size": 3
   },
   "system": {
     "log_level": "INFO",
     "model_save_path": "models/",
     "output_path": "output/",
-    "n_jobs": -1
+    "n_jobs": 2
   }
 }

@@ -64,7 +64,8 @@ class StockPredictionSystem:
         logger.info(f"Loaded {len(stock_list)} stocks from stock list")
         
         # Load price data for all stocks
-        price_data = self.data_manager.load_price_data()
+        Limited_stocks = stock_list["Code"].head(50).tolist()
+        price_data = self.data_manager.load_price_data(Limited_stocks)
         logger.info(f"Loaded price data for {len(price_data)} stocks")
         
         return stock_list, price_data
