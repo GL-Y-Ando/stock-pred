@@ -277,106 +277,123 @@ class StockPredictionSystem:
             logger.error(f"Pipeline failed: {e}")
             raise
 
-def main():
-    """
-    Main function - command line interface
-    """
-    parser = argparse.ArgumentParser(description='Stock Prediction System')
-    parser.add_argument('--mode', choices=['train', 'predict', 'update', 'full'], 
-                       default='predict', help='Operation mode')
-    parser.add_argument('--stocks', nargs='+', help='Stock symbols to predict')
-    parser.add_argument('--config', default='config.json', help='Configuration file path')
-    parser.add_argument('--output', default='predictions.json', help='Output file name (will be saved in output/ directory)')  # Changed default
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description='Stock Prediction System - Predict trends and reversal prices for stocks'
+    )
     
-    args = parser.parse_args()
+    parser.add_argument(
+        '--mode',
+        choices=['train', 'predict', 'update', 'full', 'test'],
+        default='predict',
+        help='Operation mode (default: predict)'
+    )
+    
+    parser.add_argument(
+        '--config',
+        default='config.json',
+        help='Path to configuration file (default: config.json)'
+    )
+    
+    parser.add_argument(
+        '--output',
+        default='predictions.json',
+        help='Output filename for predictions (default: predictions.json)'
+    )
+    
+    parser.add_argument(
+        '--stocks',
+        nargs='+',
+        help='Specific stock symbols to predict (optional)'
+    )
+    
+    parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+    
+    return parser.parse_args()
+
+def ensure_output_directory(config: Config, output_filename: str) -> str:
+    """
+    Ensure output directory exists and return full output path
+    
+    Args:
+        config (Config): System configuration
+        output_filename (str): Name of the output file
+        
+    Returns:
+        str: Full path to output file
+    """
+    # Get configured output directory
+    output_dir = config.system.output_path
+    
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Combine directory and filename
+    full_output_path = os.path.join(output_dir, output_filename)
+    
+    return full_output_path
+
+def main():
+    """Main entry point"""
+    args = parse_arguments()
     
     try:
-        # Initialize the system
+        # Load configuration
+        config = Config(args.config)
+        
+        # Setup logging
+        setup_logging(config.system.log_level)
+        
+        # Initialize system
         system = StockPredictionSystem(args.config)
+        
+        # Import logger after setup
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"Stock Prediction System started in {args.mode} mode")
         
         if args.mode == 'train':
             logger.info("Training mode selected")
-            stock_list, price_data = system.load_data()
-            train_data, test_data = system.prepare_training_data(price_data)
-            system.train_models(train_data)
-            metrics = system.evaluate_models(test_data)
+            metrics = system.train_models()
             print("Training completed. Metrics:", metrics)
             
         elif args.mode == 'predict':
             logger.info("Prediction mode selected")
             predictions = system.make_predictions(args.stocks)
             
-            # Ensure output directory exists and use absolute path
-            output_file = args.output
-            if not os.path.isabs(output_file):
-                output_file = os.path.abspath(output_file)
+            # Ensure output directory exists and get full path
+            full_output_path = ensure_output_directory(config, args.output)
             
-            output_dir = os.path.dirname(output_file)
-            if output_dir:
-                try:
-                    os.makedirs(output_dir, exist_ok=True)
-                    logger.info(f"Created output directory: {output_dir}")
-                    print(f"Output directory created: {output_dir}")
-                except Exception as e:
-                    logger.error(f"Failed to create output directory {output_dir}: {e}")
-                    print(f"Warning: Could not create output directory: {e}")
+            # Save predictions to the correct directory
+            with open(full_output_path, 'w', encoding='utf-8') as f:
+                json.dump(predictions, f, indent=2, ensure_ascii=False)
             
-            # Save predictions
-            import json
-            try:
-                print(f"Attempting to save to: {output_file}")
-                with open(output_file, 'w') as f:
-                    json.dump(predictions, f, indent=2, ensure_ascii=False)
-                
-                # Get absolute path for user clarity
-                abs_path = os.path.abspath(output_file)
-                logger.info(f"Predictions saved to {abs_path}")
-                print(f"Predictions saved to {output_file}")
-                print(f"Full path: {abs_path}")
-                
-            except Exception as e:
-                logger.error(f"Error saving predictions to {output_file}: {e}")
-                print(f"Error saving predictions: {e}")
-                sys.exit(1)
+            print(f"Predictions saved to {full_output_path}")
             
             # Display sample results
-            if predictions:
-                print(f"\nGenerated predictions for {len(predictions)} stocks")
-                sample_count = 0
-                for symbol, pred in predictions.items():
-                    if sample_count >= 5:  # Show only first 5
-                        break
-                    if 'error' not in pred:
-                        print(f"\n{symbol}:")
-                        print(f"  Short trend: {pred.get('short_trend', 'N/A')}")
-                        print(f"  Long trend: {pred.get('long_trend', 'N/A')}")
-                        try:
-                            short_reversal = pred.get('short_reversal_price', 0)
-                            long_reversal = pred.get('long_reversal_price', 0)
-                            short_conf = pred.get('short_confidence', 0)
-                            long_conf = pred.get('long_confidence', 0)
-                            
-                            print(f"  Short reversal: {short_reversal:.2f}")
-                            print(f"  Long reversal: {long_reversal:.2f}")
-                            print(f"  Confidence: {short_conf:.2f}% / {long_conf:.2f}%")
-                        except (TypeError, ValueError, AttributeError):
-                            print(f"  Short reversal: {pred.get('short_reversal_price', 'N/A')}")
-                            print(f"  Long reversal: {pred.get('long_reversal_price', 'N/A')}")
-                            print(f"  Confidence: {pred.get('short_confidence', 'N/A')}% / {pred.get('long_confidence', 'N/A')}%")
-                        sample_count += 1
-                    else:
-                        print(f"\n{symbol}: Error - {pred.get('error', 'Unknown error')}")
-                        sample_count += 1
-                
-                if len(predictions) > 5:
-                    print(f"\n... and {len(predictions) - 5} more stocks")
-                    
-                # Show summary statistics
-                successful = sum(1 for pred in predictions.values() if 'error' not in pred)
-                failed = len(predictions) - successful
-                print(f"\nSummary: {successful} successful, {failed} failed predictions")
-            else:
-                print("No predictions generated")
+            print(f"\nSample predictions (showing first 5):")
+            for symbol, pred in list(predictions.items())[:5]:
+                if 'error' not in pred:
+                    print(f"\n{symbol}:")
+                    print(f"  Short trend: {pred['short_trend']}")
+                    print(f"  Long trend: {pred['long_trend']}")
+                    print(f"  Short reversal: {pred['short_reversal_price']:.2f}")
+                    print(f"  Long reversal: {pred['long_reversal_price']:.2f}")
+                    print(f"  Confidence: {pred['short_confidence']:.2f}% / {pred['long_confidence']:.2f}%")
+                else:
+                    print(f"\n{symbol}: {pred['error']}")
+            
+            total_predictions = len(predictions)
+            successful_predictions = len([p for p in predictions.values() if 'error' not in p])
+            print(f"\nTotal predictions: {total_predictions}")
+            print(f"Successful predictions: {successful_predictions}")
+            print(f"Success rate: {successful_predictions/total_predictions*100:.1f}%")
             
         elif args.mode == 'update':
             logger.info("Update mode selected")
@@ -388,9 +405,20 @@ def main():
             results = system.run_full_pipeline()
             print("Full pipeline completed:", results['metrics'])
             
+        elif args.mode == 'test':
+            logger.info("Test mode selected")
+            # Test system components
+            from src.predictor import test_predictor
+            test_predictor()
+            
+    except KeyboardInterrupt:
+        print("\nOperation cancelled by user")
+        sys.exit(0)
     except Exception as e:
-        logger.error(f"System error: {e}")
         print(f"System error: {e}")
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
         sys.exit(1)
 
 if __name__ == "__main__":
