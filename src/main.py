@@ -156,86 +156,65 @@ class StockPredictionSystem:
         """
         logger.info("Generating predictions...")
         
-        # First, load trained models
-        if not self.predictor.load_models():
-            logger.error("Failed to load trained models - cannot make predictions")
-            return {}
-        
-        # Load and process data
+        # If no specific stocks provided, load all stocks from stock list
         if stock_symbols is None:
-            # Load all available stocks
-            stock_list = self.data_manager.load_stock_list()
-            stock_symbols = stock_list['code'].head(100).tolist()  # Limit for performance
+            try:
+                # Load stock list if not already loaded
+                if self.data_manager.stock_list is None:
+                    stock_list = self.data_manager.load_stock_list()
+                    logger.info(f"Loaded stock list with {len(stock_list)} stocks")
+                
+                # Get stock codes from the stock list
+                if hasattr(self.data_manager.stock_list, 'Code'):
+                    stock_symbols = self.data_manager.stock_list['Code'].tolist()
+                elif hasattr(self.data_manager.stock_list, 'code'):
+                    stock_symbols = self.data_manager.stock_list['code'].tolist()
+                else:
+                    # Fallback: try to discover available stock data files
+                    stock_symbols = self.data_manager._discover_available_stocks()
+                    
+                logger.info(f"Will generate predictions for {len(stock_symbols)} stocks")
+                
+            except Exception as e:
+                logger.error(f"Error loading stock list: {e}")
+                return {}
         
-        # Get latest data for specified stocks
-        latest_data = self.data_manager.load_price_data(stock_symbols)
+        # Load latest data for the specified stocks
+        current_data = self.data_manager.get_latest_data(stock_symbols)
+        logger.info(f"Loaded data for {len(current_data)} stocks")
         
-        if not latest_data:
-            logger.warning("No stock data available for prediction")
+        if not current_data:
+            logger.warning("No stock data loaded - predictions cannot be generated")
             return {}
-        
-        # Process data through trend analysis pipeline
-        processed_data = self.trend_analyzer.calculate_moving_averages(latest_data)
-        trend_data = self.trend_analyzer.calculate_trend_features(processed_data)
         
         predictions = {}
         
-        for symbol, data in trend_data.items():
+        for symbol, data in current_data.items():
             try:
-                # Prepare data for neural network prediction
-                prediction_data = self.predictor.prepare_prediction_data(data)
+                # Calculate current trends
+                short_trend = self.trend_analyzer.calculate_short_trend(data)
+                long_trend = self.trend_analyzer.calculate_long_trend(data)
                 
-                if prediction_data is None:
-                    logger.warning(f"Insufficient data for prediction: {symbol}")
-                    continue
+                # Predict trend reversals
+                short_reversal = self.predictor.predict_short_reversal(data)
+                long_reversal = self.predictor.predict_long_reversal(data)
                 
-                # Generate predictions using trained models
-                import numpy as np
-                
-                if 'short_trend_classifier' in self.predictor.models:
-                    short_trend_prob = self.predictor.models['short_trend_classifier'].predict(prediction_data, verbose=0)
-                    short_trend_class = np.argmax(short_trend_prob[0]) - 1  # Convert from 0,1,2 to -1,0,1
-                    short_trend = '+' if short_trend_class > 0 else ('-' if short_trend_class < 0 else '0')
-                    short_confidence = float(np.max(short_trend_prob[0]) * 100)
-                else:
-                    short_trend, short_confidence = '0', 50.0
-                
-                if 'long_trend_classifier' in self.predictor.models:
-                    long_trend_prob = self.predictor.models['long_trend_classifier'].predict(prediction_data, verbose=0)
-                    long_trend_class = np.argmax(long_trend_prob[0]) - 1  # Convert from 0,1,2 to -1,0,1
-                    long_trend = '+' if long_trend_class > 0 else ('-' if long_trend_class < 0 else '0')
-                    long_confidence = float(np.max(long_trend_prob[0]) * 100)
-                else:
-                    long_trend, long_confidence = '0', 50.0
-                
-                # Predict reversal prices
-                current_price = float(data['close'].iloc[-1])
-                
-                if 'short_reversal_regressor' in self.predictor.models:
-                    short_reversal_pred = self.predictor.models['short_reversal_regressor'].predict(prediction_data, verbose=0)
-                    short_reversal_price = float(short_reversal_pred[0][0])
-                else:
-                    short_reversal_price = current_price
-                
-                if 'long_reversal_regressor' in self.predictor.models:
-                    long_reversal_pred = self.predictor.models['long_reversal_regressor'].predict(prediction_data, verbose=0)
-                    long_reversal_price = float(long_reversal_pred[0][0])
-                else:
-                    long_reversal_price = current_price
+                # Calculate confidence ratings
+                short_confidence = self.predictor.calculate_confidence(data, 'short')
+                long_confidence = self.predictor.calculate_confidence(data, 'long')
                 
                 predictions[symbol] = {
-                    'current_price': current_price,
                     'short_trend': short_trend,
                     'long_trend': long_trend,
-                    'short_reversal_price': short_reversal_price,
-                    'long_reversal_price': long_reversal_price,
+                    'short_reversal_price': short_reversal['price'],
+                    'long_reversal_price': long_reversal['price'],
                     'short_confidence': short_confidence,
                     'long_confidence': long_confidence,
                     'timestamp': datetime.now().isoformat()
                 }
                 
             except Exception as e:
-                logger.error(f"Error predicting for {symbol}: {e}#)
+                logger.error(f"Error predicting for {symbol}: {e}")
                 predictions[symbol] = {
                     'error': str(e),
                     'timestamp': datetime.now().isoformat()
