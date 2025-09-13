@@ -17,8 +17,12 @@ import sys
 import argparse
 import logging
 import re
+import json
+import logging
 from datetime import datetime
 from pathlib import Path
+
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 # Core modules
 from data_manager import DataManager
@@ -26,6 +30,7 @@ from model_trainer import ModelTrainer
 from predictor import Predictor
 from trend_analyzer import TrendAnalyzer
 from config import Config
+from src.system import StockPredictionSystem
 
 # Configure logging
 logging.basicConfig(
@@ -277,6 +282,243 @@ class StockPredictionSystem:
             logger.error(f"Pipeline failed: {e}")
             raise
 
+def setup_logging(log_level: str) -> None:
+    """
+    Configure logging for the application
+    
+    Args:
+        log_level (str): Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    """
+    numeric_level = getattr(logging, log_level.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError(f'Invalid log level: {log_level}')
+    
+    logging.basicConfig(
+        level=numeric_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
+# Add src directory to Python path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+
+from src.data_manager import DataManager
+from src.model_trainer import ModelTrainer
+from src.predictor import Predictor
+from src.trend_analyzer import TrendAnalyzer
+from src.config import Config
+
+class StockPredictionSystem:
+    """
+    Main class for the stock prediction system
+    """
+    
+    def __init__(self, config_path="config.json"):
+        """
+        Initialize the stock prediction system
+        
+        Args:
+            config_path (str): Path to configuration file
+        """
+        self.config = Config(config_path)
+        self.data_manager = DataManager(self.config)
+        self.trend_analyzer = TrendAnalyzer(self.config)
+        self.model_trainer = ModelTrainer(self.config)
+        self.predictor = Predictor(self.config)
+        
+        # Get logger after logging is configured
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Stock Prediction System initialized")
+    
+    def load_data(self):
+        """
+        Load and prepare stock data
+        """
+        self.logger.info("Loading stock data...")
+        
+        # Load stock list
+        stock_list = self.data_manager.load_stock_list()
+        self.logger.info(f"Loaded {len(stock_list)} stocks from stock list")
+        
+        # Load price data for all stocks (limited to first 50 for testing)
+        limited_stocks = stock_list["Code"].head(50).tolist()
+        price_data = self.data_manager.load_price_data(limited_stocks)
+        
+        return stock_list, price_data
+    
+    def prepare_training_data(self, price_data):
+        """
+        Prepare data for model training
+        
+        Args:
+            price_data: Dictionary of stock price data
+            
+        Returns:
+            Tuple of (train_data, test_data)
+        """
+        self.logger.info("Preparing training data...")
+        
+        # Add technical indicators and features
+        processed_data = {}
+        for symbol, data in price_data.items():
+            if len(data) >= self.config.data.min_data_points:
+                processed_data[symbol] = self.trend_analyzer.calculate_indicators(data)
+        
+        # Split data for training and testing
+        train_data = {}
+        test_data = {}
+        
+        for symbol, data in processed_data.items():
+            split_index = int(len(data) * self.config.data.train_ratio)
+            train_data[symbol] = data[:split_index].copy()
+            test_data[symbol] = data[split_index:].copy()
+        
+        self.logger.info(f"Training data prepared for {len(train_data)} stocks")
+        return train_data, test_data
+    
+    def train_models(self, train_data=None):
+        """
+        Train neural network models
+        
+        Args:
+            train_data: Training data dictionary (optional, will load if not provided)
+        """
+        self.logger.info("Training models...")
+        
+        if train_data is None:
+            stock_list, price_data = self.load_data()
+            train_data, _ = self.prepare_training_data(price_data)
+        
+        # Train trend classification models
+        self.model_trainer.train_trend_models(train_data)
+        
+        # Train reversal prediction models
+        self.model_trainer.train_reversal_models(train_data)
+        
+        # Save models
+        self.model_trainer.save_all_models()
+        
+        self.logger.info("Model training completed")
+        return {"status": "Training completed"}
+    
+    def make_predictions(self, stock_symbols=None):
+        """
+        Generate predictions for stocks
+        
+        Args:
+            stock_symbols: List of stock symbols (optional, will predict all if not provided)
+            
+        Returns:
+            Dictionary of predictions
+        """
+        self.logger.info("Making predictions...")
+        
+        # Load data if stock symbols not provided
+        if stock_symbols is None:
+            stock_list, price_data = self.load_data()
+            stock_symbols = list(price_data.keys())
+        else:
+            # Load data for specific stocks
+            stock_list = self.data_manager.load_stock_list()
+            price_data = self.data_manager.load_price_data(stock_symbols)
+        
+        # Load trained models
+        self.predictor.load_models()
+        
+        # Generate predictions
+        predictions = {}
+        for symbol in stock_symbols:
+            if symbol in price_data and len(price_data[symbol]) > 0:
+                try:
+                    # Add technical indicators
+                    data_with_indicators = self.trend_analyzer.calculate_indicators(price_data[symbol])
+                    
+                    # Make predictions
+                    prediction = self.predictor.predict_stock(symbol, data_with_indicators)
+                    predictions[symbol] = prediction
+                    
+                except Exception as e:
+                    self.logger.error(f"Error predicting {symbol}: {e}")
+                    predictions[symbol] = {"error": str(e)}
+        
+        self.logger.info(f"Generated predictions for {len(predictions)} stocks")
+        return predictions
+    
+    def update_models(self):
+        """
+        Update models with latest data
+        """
+        self.logger.info("Updating models...")
+        
+        # Load latest data
+        stock_list, price_data = self.load_data()
+        train_data, test_data = self.prepare_training_data(price_data)
+        
+        # Retrain models
+        self.train_models(train_data)
+        
+        # Evaluate performance
+        metrics = self.evaluate_models(test_data)
+        
+        self.logger.info("Models updated successfully")
+        return metrics
+    
+    def evaluate_models(self, test_data):
+        """
+        Evaluate model performance
+        
+        Args:
+            test_data: Test data dictionary
+            
+        Returns:
+            Dictionary of evaluation metrics
+        """
+        self.logger.info("Evaluating models...")
+        
+        # Load trained models
+        self.predictor.load_models()
+        
+        # Evaluate on test data
+        metrics = {"accuracy": 0.0, "precision": 0.0, "recall": 0.0}
+        
+        # This would contain actual evaluation logic
+        # For now, returning placeholder metrics
+        
+        return metrics
+    
+    def run_full_pipeline(self):
+        """
+        Run the complete pipeline: load data, train models, make predictions
+        """
+        self.logger.info("Running full pipeline...")
+        
+        try:
+            # 1. Load data
+            stock_list, price_data = self.load_data()
+            
+            # 2. Prepare training data
+            train_data, test_data = self.prepare_training_data(price_data)
+            
+            # 3. Train models
+            self.train_models(train_data)
+            
+            # 4. Evaluate models
+            metrics = self.evaluate_models(test_data)
+            
+            # 5. Generate sample predictions
+            sample_stocks = list(price_data.keys())[:10]  # Predict for first 10 stocks
+            predictions = self.make_predictions(sample_stocks)
+            
+            self.logger.info("Full pipeline completed successfully")
+            return {
+                'metrics': metrics,
+                'sample_predictions': predictions
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Pipeline failed: {e}")
+            raise
+
 def parse_arguments():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
@@ -349,12 +591,11 @@ def main():
         # Setup logging
         setup_logging(config.system.log_level)
         
+        # Get logger after setup
+        logger = logging.getLogger(__name__)
+        
         # Initialize system
         system = StockPredictionSystem(args.config)
-        
-        # Import logger after setup
-        import logging
-        logger = logging.getLogger(__name__)
         
         logger.info(f"Stock Prediction System started in {args.mode} mode")
         
