@@ -64,7 +64,8 @@ class StockPredictionSystem:
         logger.info(f"Loaded {len(stock_list)} stocks from stock list")
         
         # Load price data for all stocks
-        price_data = self.data_manager.load_price_data()
+        Limited_stocks = stock_list["Code"].head(50).tolist()
+        price_data = self.data_manager.load_price_data(Limited_stocks)
         logger.info(f"Loaded price data for {len(price_data)} stocks")
         
         return stock_list, price_data
@@ -86,12 +87,13 @@ class StockPredictionSystem:
         processed_data = self.trend_analyzer.calculate_trend_features(processed_data)
         
         # Split data for training and testing
-        train_data, test_data = self.data_manager.split_data(
+        train_data, validation_data, test_data = self.data_manager.split_data(
             processed_data, 
-            train_ratio=self.config.train_ratio
+            train_ratio=self.config.data.train_ratio
         )
         
         logger.info(f"Training data: {len(train_data)} stocks")
+        logger.info(f"Validation data: {len(validation_data)} stocks")
         logger.info(f"Testing data: {len(test_data)} stocks")
         
         return train_data, test_data

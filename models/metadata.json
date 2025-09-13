@@ -1,0 +1,73 @@
+{
+  "models": [
+    "short_trend_classifier",
+    "long_trend_classifier",
+    "short_reversal_regressor",
+    "long_reversal_regressor",
+    "confidence_estimator"
+  ],
+  "training_date": "2025-09-13T08:13:36.591278",
+  "config": {
+    "data": {
+      "stock_list_path": "data/stock_list.csv",
+      "price_data_path": "data/price_data/",
+      "train_ratio": 0.8,
+      "validation_ratio": 0.1,
+      "test_ratio": 0.1,
+      "min_data_points": 100,
+      "max_missing_days": 10,
+      "date_format": "%Y-%m-%d"
+    },
+    "model": {
+      "short_term_window": 5,
+      "long_term_window": 25,
+      "lookback_period": 60,
+      "prediction_horizon": 1,
+      "hidden_layers": [
+        64,
+        32,
+        16
+      ],
+      "dropout_rate": 0.2,
+      "activation": "relu",
+      "output_activation": "linear",
+      "learning_rate": 0.001,
+      "epochs": 60,
+      "batch_size": 32,
+      "early_stopping_patience": 10,
+      "reduce_lr_patience": 5,
+      "optimizer": "adam",
+      "loss_function": "mse",
+      "metrics": [
+        "mae",
+        "mse"
+      ]
+    },
+    "prediction": {
+      "confidence_threshold": 0.7,
+      "update_frequency": "daily",
+      "ensemble_size": 3,
+      "monte_carlo_samples": 1000,
+      "trend_threshold": 0.001,
+      "reversal_sensitivity": 0.02,
+      "volatility_window": 20,
+      "decimal_places": 2,
+      "include_intermediate_values": false,
+      "save_confidence_details": true
+    },
+    "system": {
+      "log_level": "INFO",
+      "log_file": "logs/system.log",
+      "model_save_path": "models/",
+      "output_path": "output/",
+      "n_jobs": 2,
+      "memory_limit_gb": 8.0,
+      "batch_processing_size": 100,
+      "auto_update_enabled": false,
+      "update_schedule": "0 2 * * *",
+      "backup_models": true,
+      "max_model_versions": 5
+    }
+  },
+  "tensorflow_version": "2.20.0"
+}
