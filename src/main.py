@@ -286,7 +286,7 @@ def main():
                        default='predict', help='Operation mode')
     parser.add_argument('--stocks', nargs='+', help='Stock symbols to predict')
     parser.add_argument('--config', default='config.json', help='Configuration file path')
-    parser.add_argument('--output', default='output/predictions.json', help='Output file path')  # Changed default
+    parser.add_argument('--output', default='predictions.json', help='Output file name (will be saved in output/ directory)')  # Changed default
     
     args = parser.parse_args()
     
@@ -306,16 +306,25 @@ def main():
             logger.info("Prediction mode selected")
             predictions = system.make_predictions(args.stocks)
             
-            # Ensure output directory exists
+            # Ensure output directory exists and use absolute path
             output_file = args.output
+            if not os.path.isabs(output_file):
+                output_file = os.path.abspath(output_file)
+            
             output_dir = os.path.dirname(output_file)
             if output_dir:
-                os.makedirs(output_dir, exist_ok=True)
-                logger.info(f"Created output directory: {output_dir}")
+                try:
+                    os.makedirs(output_dir, exist_ok=True)
+                    logger.info(f"Created output directory: {output_dir}")
+                    print(f"Output directory created: {output_dir}")
+                except Exception as e:
+                    logger.error(f"Failed to create output directory {output_dir}: {e}")
+                    print(f"Warning: Could not create output directory: {e}")
             
             # Save predictions
             import json
             try:
+                print(f"Attempting to save to: {output_file}")
                 with open(output_file, 'w') as f:
                     json.dump(predictions, f, indent=2, ensure_ascii=False)
                 
