@@ -74,9 +74,9 @@ class DataManager:
             self.stock_list = pd.read_csv(self.config.data.stock_list_path, encoding='utf-8')
             
             # Clean and standardize stock codes
-            if 'code' in self.stock_list.columns:
-                self.stock_list['code'] = self.stock_list['code'].astype(str)
-                self.stock_list['code'] = self.stock_list['code'].str.zfill(5)  # Pad with zeros
+            if 'Code' in self.stock_list.columns:
+                self.stock_list['Code'] = self.stock_list['Code'].astype(str)
+                self.stock_list['Code'] = self.stock_list['Code'].str.zfill(5)  # Pad with zeros
             
             # Add industry classification if missing
             if 'sector_name' not in self.stock_list.columns and 'industry_name' in self.stock_list.columns:
@@ -105,7 +105,7 @@ class DataManager:
         """
         try:
             if stock_codes is None and self.stock_list is not None:
-                stock_codes = self.stock_list['code'].tolist()
+                stock_codes = self.stock_list['Code'].tolist()
             elif stock_codes is None:
                 # Load all available price data files
                 stock_codes = self._discover_available_stocks()
