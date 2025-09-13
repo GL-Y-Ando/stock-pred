@@ -286,7 +286,7 @@ def main():
                        default='predict', help='Operation mode')
     parser.add_argument('--stocks', nargs='+', help='Stock symbols to predict')
     parser.add_argument('--config', default='config.json', help='Configuration file path')
-    parser.add_argument('--output', default='predictions.json', help='Output file path')
+    parser.add_argument('--output', default='output/predictions.json', help='Output file path')  # Changed default
     
     args = parser.parse_args()
     
@@ -306,22 +306,68 @@ def main():
             logger.info("Prediction mode selected")
             predictions = system.make_predictions(args.stocks)
             
+            # Ensure output directory exists
+            output_file = args.output
+            output_dir = os.path.dirname(output_file)
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+                logger.info(f"Created output directory: {output_dir}")
+            
             # Save predictions
             import json
-            with open(args.output, 'w') as f:
-                json.dump(predictions, f, indent=2, ensure_ascii=False)
-            
-            print(f"Predictions saved to {args.output}")
+            try:
+                with open(output_file, 'w') as f:
+                    json.dump(predictions, f, indent=2, ensure_ascii=False)
+                
+                # Get absolute path for user clarity
+                abs_path = os.path.abspath(output_file)
+                logger.info(f"Predictions saved to {abs_path}")
+                print(f"Predictions saved to {output_file}")
+                print(f"Full path: {abs_path}")
+                
+            except Exception as e:
+                logger.error(f"Error saving predictions to {output_file}: {e}")
+                print(f"Error saving predictions: {e}")
+                sys.exit(1)
             
             # Display sample results
-            for symbol, pred in list(predictions.items())[:5]:
-                if 'error' not in pred:
-                    print(f"\n{symbol}:")
-                    print(f"  Short trend: {pred['short_trend']}")
-                    print(f"  Long trend: {pred['long_trend']}")
-                    print(f"  Short reversal: {pred['short_reversal_price']:.2f}")
-                    print(f"  Long reversal: {pred['long_reversal_price']:.2f}")
-                    print(f"  Confidence: {pred['short_confidence']:.2f}% / {pred['long_confidence']:.2f}%")
+            if predictions:
+                print(f"\nGenerated predictions for {len(predictions)} stocks")
+                sample_count = 0
+                for symbol, pred in predictions.items():
+                    if sample_count >= 5:  # Show only first 5
+                        break
+                    if 'error' not in pred:
+                        print(f"\n{symbol}:")
+                        print(f"  Short trend: {pred.get('short_trend', 'N/A')}")
+                        print(f"  Long trend: {pred.get('long_trend', 'N/A')}")
+                        try:
+                            short_reversal = pred.get('short_reversal_price', 0)
+                            long_reversal = pred.get('long_reversal_price', 0)
+                            short_conf = pred.get('short_confidence', 0)
+                            long_conf = pred.get('long_confidence', 0)
+                            
+                            print(f"  Short reversal: {short_reversal:.2f}")
+                            print(f"  Long reversal: {long_reversal:.2f}")
+                            print(f"  Confidence: {short_conf:.2f}% / {long_conf:.2f}%")
+                        except (TypeError, ValueError, AttributeError):
+                            print(f"  Short reversal: {pred.get('short_reversal_price', 'N/A')}")
+                            print(f"  Long reversal: {pred.get('long_reversal_price', 'N/A')}")
+                            print(f"  Confidence: {pred.get('short_confidence', 'N/A')}% / {pred.get('long_confidence', 'N/A')}%")
+                        sample_count += 1
+                    else:
+                        print(f"\n{symbol}: Error - {pred.get('error', 'Unknown error')}")
+                        sample_count += 1
+                
+                if len(predictions) > 5:
+                    print(f"\n... and {len(predictions) - 5} more stocks")
+                    
+                # Show summary statistics
+                successful = sum(1 for pred in predictions.values() if 'error' not in pred)
+                failed = len(predictions) - successful
+                print(f"\nSummary: {successful} successful, {failed} failed predictions")
+            else:
+                print("No predictions generated")
             
         elif args.mode == 'update':
             logger.info("Update mode selected")
@@ -335,6 +381,7 @@ def main():
             
     except Exception as e:
         logger.error(f"System error: {e}")
+        print(f"System error: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
