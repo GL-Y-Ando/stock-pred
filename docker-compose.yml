@@ -31,6 +31,8 @@ services:
       - PYTHONUNBUFFERED=1
       - PYTHONPATH=/app/src
       - TF_CPP_MIN_LOG_LEVEL=2  # Reduce TensorFlow logs
+      - MPLCONFIGDIR=/tmp/matplotlib  # Fix matplotlib permissions
+      - HOME=/tmp  # Fix home directory permissions
     
     env_file:
       - .env  # Load environment variables from .env file
