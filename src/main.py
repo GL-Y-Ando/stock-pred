@@ -88,7 +88,7 @@ class StockPredictionSystem:
         # Split data for training and testing
         train_data, test_data = self.data_manager.split_data(
             processed_data, 
-            train_ratio=self.config.train_ratio
+            train_ratio=self.config.data.train_ratio
         )
         
         logger.info(f"Training data: {len(train_data)} stocks")
