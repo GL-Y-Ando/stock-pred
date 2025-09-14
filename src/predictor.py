@@ -25,10 +25,10 @@ try:
     from tensorflow import keras
     from tensorflow.keras.models import Sequential, load_model
     from tensorflow.keras.layers import Dense, LSTM, Dropout
-    HAS_TENSORFLOW = True
+    TENSORFLOW_AVAILABLE = True
 except ImportError:
     print("Warning: TensorFlow not available. Using fallback prediction methods.")
-    HAS_TENSORFLOW = False
+    TENSORFLOW_AVAILABLE = False
     # Create dummy classes to prevent import errors
     class keras:
         @staticmethod
