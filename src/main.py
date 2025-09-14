@@ -297,7 +297,7 @@ def setup_logging(log_level: str) -> None:
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
-    
+
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
 class StockPredictionSystem:
@@ -395,47 +395,52 @@ class StockPredictionSystem:
     
     def make_predictions(self, stock_symbols=None):
         """
-        Generate predictions for stocks
+        Generate predictions for specified stocks
         
         Args:
-            stock_symbols: List of stock symbols (optional, will predict all if not provided)
+            stock_symbols (list): List of stock symbols to predict (None for all)
             
         Returns:
-            Dictionary of predictions
+            dict: Predictions for each stock
         """
-        self.logger.info("Making predictions...")
+        logger.info("Making predictions...")
+        logger.info("Loading stock data...")
         
-        # Load data if stock symbols not provided
-        if stock_symbols is None:
-            stock_list, price_data = self.load_data()
-            stock_symbols = list(price_data.keys())
-        else:
-            # Load data for specific stocks
-            stock_list = self.data_manager.load_stock_list()
-            price_data = self.data_manager.load_price_data(stock_symbols)
+        # Load stock list and price data
+        stock_list, price_data = self.load_data()
+        logger.info(f"Loaded price data for {len(price_data)} stocks")
         
-        # Load trained models
-        self.predictor.load_models()
+        # Load trained models into predictor
+        models_loaded = self.predictor.load_models(self.model_trainer)
+        logger.info(f"Loaded {models_loaded} models from disk" if models_loaded else "No models loaded, using fallback methods")
         
-        # Generate predictions
         predictions = {}
-        for symbol in stock_symbols:
-            if symbol in price_data and len(price_data[symbol]) > 0:
-                try:
-                    # Add technical indicators
-                    data_with_indicators = self.trend_analyzer.calculate_indicators(price_data[symbol])
-                    
-                    # Make predictions
-                    prediction = self.predictor.predict_stock(symbol, data_with_indicators)
-                    predictions[symbol] = prediction
-                    
-                except Exception as e:
-                    self.logger.error(f"Error predicting {symbol}: {e}")
-                    predictions[symbol] = {"error": str(e)}
         
-        self.logger.info(f"Generated predictions for {len(predictions)} stocks")
+        for stock_code, stock_data in price_data.items():
+            try:
+                # Process data through the analysis pipeline
+                # First calculate moving averages
+                processed_data = {stock_code: stock_data}
+                ma_data = self.trend_analyzer.calculate_moving_averages(processed_data)
+                
+                # Then calculate all trend features
+                trend_data = self.trend_analyzer.calculate_trend_features(ma_data)
+                
+                # Get the processed data for this stock
+                analyzed_data = trend_data[stock_code]
+                
+                # Generate complete prediction using the predictor
+                prediction = self.predictor.predict_stock(analyzed_data, stock_code)
+                
+                # Store the prediction
+                predictions[stock_code] = prediction
+                
+            except Exception as e:
+                logger.error(f"Error predicting {stock_code}: {e}")
+                predictions[stock_code] = str(e)
+        
+        logger.info(f"Generated predictions for {len(price_data)} stocks")
         return predictions
-    
     def update_models(self):
         """
         Update models with latest data

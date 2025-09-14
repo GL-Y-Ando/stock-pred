@@ -16,15 +16,26 @@ import json
 from scipy import stats
 from scipy.signal import find_peaks
 import warnings
+import os  # This was missing and causing the "name 'os' is not defined" error
+import joblib  # For model serialization if not using TensorFlow
 
-# TensorFlow/Keras imports
+# TensorFlow/Keras imports with error handling
 try:
     import tensorflow as tf
     from tensorflow import keras
-    TENSORFLOW_AVAILABLE = True
+    from tensorflow.keras.models import Sequential, load_model
+    from tensorflow.keras.layers import Dense, LSTM, Dropout
+    HAS_TENSORFLOW = True
 except ImportError:
-    TENSORFLOW_AVAILABLE = False
-    logging.warning("TensorFlow not available. Prediction capabilities will be limited.")
+    print("Warning: TensorFlow not available. Using fallback prediction methods.")
+    HAS_TENSORFLOW = False
+    # Create dummy classes to prevent import errors
+    class keras:
+        @staticmethod
+        class models:
+            @staticmethod
+            def load_model(path):
+                return None
 
 warnings.filterwarnings('ignore')
 logger = logging.getLogger(__name__)
