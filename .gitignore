@@ -43,6 +43,9 @@ ENV/
 # Data files (uncomment if you don't want to track data)
 data/
 
+# Outout files
+output/ 
+
 # OS
 .DS_Store
 Thumbs.db
