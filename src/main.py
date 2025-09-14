@@ -19,6 +19,7 @@ import logging
 import re
 import json
 import logging
+import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
@@ -577,6 +578,71 @@ def ensure_output_directory(config: Config, output_filename: str) -> str:
     
     return full_output_path
 
+def save_predictions_as_csv(predictions: Dict[str, Dict[str, Any]], output_path: str) -> str:
+    """
+    Save stock predictions as CSV instead of JSON format
+    
+    Args:
+        predictions (Dict[str, Dict[str, Any]]): Prediction results dictionary
+        output_path (str): Path where to save the CSV file
+        
+    Returns:
+        str: Full path to the saved CSV file
+    """
+    # Convert predictions dictionary to a list of records for DataFrame
+    prediction_records = []
+    
+    for stock_code, prediction in predictions.items():
+        if 'error' in prediction:
+            # Handle error cases
+            record = {
+                'stock_code': stock_code,
+                'error': prediction['error'],
+                'timestamp': prediction.get('timestamp', datetime.now().isoformat()),
+                'short_trend': None,
+                'long_trend': None,
+                'short_reversal_price': None,
+                'long_reversal_price': None,
+                'short_confidence': None,
+                'long_confidence': None,
+                'current_price': None,
+                'analysis_date': None
+            }
+        else:
+            # Handle successful predictions
+            record = {
+                'stock_code': stock_code,
+                'error': None,
+                'timestamp': prediction.get('timestamp', datetime.now().isoformat()),
+                'short_trend': prediction.get('short_trend'),
+                'long_trend': prediction.get('long_trend'),
+                'short_reversal_price': prediction.get('short_reversal_price'),
+                'long_reversal_price': prediction.get('long_reversal_price'),
+                'short_confidence': prediction.get('short_confidence'),
+                'long_confidence': prediction.get('long_confidence'),
+                'current_price': prediction.get('current_price'),
+                'analysis_date': prediction.get('analysis_date')
+            }
+        
+        prediction_records.append(record)
+    
+    # Create DataFrame
+    df = pd.DataFrame(prediction_records)
+    
+    # Sort by stock_code for consistent output
+    df = df.sort_values('stock_code')
+    
+    # Ensure output path has .csv extension
+    if not output_path.endswith('.csv'):
+        output_path = output_path.replace('.json', '.csv')
+        if not output_path.endswith('.csv'):
+            output_path += '.csv'
+    
+    # Save to CSV
+    df.to_csv(output_path, index=False, encoding='utf-8')
+    
+    return output_path
+
 def main():
     """Main entry point"""
     args = parse_arguments()
@@ -608,11 +674,17 @@ def main():
             # Ensure output directory exists and get full path
             full_output_path = ensure_output_directory(config, args.output)
             
-            # Save predictions to the correct directory
-            with open(full_output_path, 'w', encoding='utf-8') as f:
-                json.dump(predictions, f, indent=2, ensure_ascii=False)
-            
-            print(f"Predictions saved to {full_output_path}")
+            # Save predictions as CSV instead of JSON
+            try:
+                final_output_path = save_predictions_as_csv(predictions, full_output_path)
+                print(f"Predictions saved to {final_output_path}")
+            except Exception as e:
+                logger.error(f"Error saving predictions to CSV: {e}")
+                # Fallback to JSON if CSV fails
+                fallback_path = full_output_path.replace('.csv', '.json') if '.csv' in full_output_path else full_output_path
+                with open(fallback_path, 'w', encoding='utf-8') as f:
+                    json.dump(predictions, f, indent=2, ensure_ascii=False)
+                print(f"Predictions saved to {fallback_path} (JSON fallback)")
             
             # Display sample results
             print(f"\nSample predictions (showing first 5):")
