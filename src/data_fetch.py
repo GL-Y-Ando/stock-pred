@@ -101,3 +101,33 @@ for i, code in enumerate(unique_codes, 1):
         print(f"  {res.json()}")
 
 print("\nData fetching completed!")
+
+# --- Configuration ---
+volume_column = "volume"
+threshold = 50000
+
+# --- Processing ---
+for filename in os.listdir(price_data_dir):
+    if not filename.lower().endswith(".csv"):
+        continue  # skip non-csv files
+
+    file_path = os.path.join(directory, filename)
+
+    try:
+        df = pd.read_csv(file_path)
+
+        # Skip files without the target column
+        if volume_column not in df.columns:
+            print(f"Skipping {filename}: '{volume_column}' column not found.")
+            continue
+
+        median_volume = df[volume_column].median()
+
+        if median_volume <= threshold:
+            os.remove(file_path)
+            print(f"Deleted {filename}: median volume = {median_volume}")
+        else:
+            print(f"Kept {filename}: median volume = {median_volume}")
+
+    except Exception as e:
+        print(f"Error processing {filename}: {e}")
