@@ -74,7 +74,6 @@ if False:  # Change to False when ready for full run
     print(f"Testing mode: Processing only {len(unique_codes)} companies")
 
 for i, code in enumerate(unique_codes, 1):
-    time.sleep(0.3)
     print(f"Processing {code} ({i}/{len(unique_codes)})")
     
     params = {"code": code}
@@ -103,7 +102,7 @@ for i, code in enumerate(unique_codes, 1):
 print("\nData fetching completed!")
 
 # --- Configuration ---
-volume_column = "volume"
+volume_column = "Volume"
 threshold = 50000
 
 # --- Processing ---
@@ -111,7 +110,7 @@ for filename in os.listdir(price_data_dir):
     if not filename.lower().endswith(".csv"):
         continue  # skip non-csv files
 
-    file_path = os.path.join(directory, filename)
+    file_path = os.path.join(price_data_dir, filename)
 
     try:
         df = pd.read_csv(file_path)
@@ -123,7 +122,7 @@ for filename in os.listdir(price_data_dir):
 
         median_volume = df[volume_column].median()
 
-        if median_volume <= threshold:
+        if pd.isna(median_volume) or median_volume <= threshold:
             os.remove(file_path)
             print(f"Deleted {filename}: median volume = {median_volume}")
         else:
