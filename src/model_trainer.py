@@ -172,7 +172,7 @@ class ModelTrainer:
                     'short_reversal_regressor', 'long_reversal_regressor', 'confidence_estimator']}
         
         # Extract features
-        X = data[available_features].fillna(method='ffill').fillna(0).values
+        X = data[available_features].ffill().fillna(0).values
         
         # Prepare targets for different models
         try:
