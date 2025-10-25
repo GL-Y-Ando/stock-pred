@@ -167,7 +167,7 @@ class Predictor:
                 return None
             
             # Extract features and handle missing values
-            feature_data = data[available_features].fillna(method='ffill').fillna(0)
+            feature_data = data[available_features].ffill().fillna(0)
             
             # Get the most recent sequence
             if len(feature_data) >= self.lookback_period:
