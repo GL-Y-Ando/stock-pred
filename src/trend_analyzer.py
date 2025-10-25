@@ -48,164 +48,164 @@ class TrendAnalyzer:
         logger.info("TrendAnalyzer initialized")
     
     def _calculate_basic_features(self, df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calculate basic financial features
-    
-    Args:
-        df (pd.DataFrame): Stock data
+        """
+        Calculate basic financial features
         
-    Returns:
-        pd.DataFrame: Data with basic features
-    """
-    # Daily returns (1-day percentage change)
-    df['return_1d'] = df['close'].pct_change()
-    
-    # 5-day volatility (standard deviation of returns)
-    df['volatility_5d'] = df['return_1d'].rolling(window=5, min_periods=5).std()
-    
-    # 20-day volatility
-    df['volatility_20d'] = df['return_1d'].rolling(window=20, min_periods=20).std()
-    
-    return df
-
-def _calculate_rsi(self, df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
-    """
-    Calculate Relative Strength Index (RSI)
-    
-    Args:
-        df (pd.DataFrame): Stock data
-        period (int): RSI period (default 14)
+        Args:
+            df (pd.DataFrame): Stock data
+            
+        Returns:
+            pd.DataFrame: Data with basic features
+        """
+        # Daily returns (1-day percentage change)
+        df['return_1d'] = df['close'].pct_change()
         
-    Returns:
-        pd.DataFrame: Data with RSI
-    """
-    # Calculate price changes
-    delta = df['close'].diff()
-    
-    # Separate gains and losses
-    gains = delta.where(delta > 0, 0)
-    losses = -delta.where(delta < 0, 0)
-    
-    # Calculate average gains and losses
-    avg_gains = gains.rolling(window=period, min_periods=period).mean()
-    avg_losses = losses.rolling(window=period, min_periods=period).mean()
-    
-    # Calculate RS and RSI
-    rs = avg_gains / avg_losses
-    df['rsi'] = 100 - (100 / (1 + rs))
-    
-    # Fill NaN with 50 (neutral RSI)
-    df['rsi'] = df['rsi'].fillna(50)
-    
-    return df
-
-def _calculate_macd(self, df: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.DataFrame:
-    """
-    Calculate MACD (Moving Average Convergence Divergence)
-    
-    Args:
-        df (pd.DataFrame): Stock data
-        fast (int): Fast EMA period (default 12)
-        slow (int): Slow EMA period (default 26)
-        signal (int): Signal line period (default 9)
+        # 5-day volatility (standard deviation of returns)
+        df['volatility_5d'] = df['return_1d'].rolling(window=5, min_periods=5).std()
         
-    Returns:
-        pd.DataFrame: Data with MACD and signal line
-    """
-    # Calculate EMAs
-    ema_fast = df['close'].ewm(span=fast, adjust=False).mean()
-    ema_slow = df['close'].ewm(span=slow, adjust=False).mean()
-    
-    # Calculate MACD line
-    df['macd'] = ema_fast - ema_slow
-    
-    # Calculate signal line
-    df['macd_signal'] = df['macd'].ewm(span=signal, adjust=False).mean()
-    
-    # Fill NaN with 0
-    df['macd'] = df['macd'].fillna(0)
-    df['macd_signal'] = df['macd_signal'].fillna(0)
-    
-    return df
-
-def _calculate_all_technical_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calculate all technical indicators in one pass
-    This is a helper method that combines all feature calculations
-    
-    Args:
-        df (pd.DataFrame): Stock data
-        
-    Returns:
-        pd.DataFrame: Data with all technical indicators
-    """
-    # Basic features (returns and volatility)
-    df = self._calculate_basic_features(df)
-    
-    # RSI
-    df = self._calculate_rsi(df)
-    
-    # MACD
-    df = self._calculate_macd(df)
-    
-    return df
-    
-    def calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calculate all technical indicators for a single stock's data
-    
-    Args:
-        data (pd.DataFrame): Stock price data
-        
-    Returns:
-        pd.DataFrame: Data with all calculated indicators
-    """
-    try:
-        df = data.copy()
-        
-        # Calculate all technical indicators FIRST
-        df = self._calculate_all_technical_indicators(df)
-        
-        # Calculate moving averages
-        df[f'ma_{self.short_window}'] = df['close'].rolling(
-            window=self.short_window, min_periods=self.short_window
-        ).mean()
-        
-        df[f'ma_{self.long_window}'] = df['close'].rolling(
-            window=self.long_window, min_periods=self.long_window
-        ).mean()
-        
-        # Calculate additional moving averages
-        df['ma_10'] = df['close'].rolling(window=10, min_periods=10).mean()
-        df['ma_50'] = df['close'].rolling(window=50, min_periods=50).mean()
-        
-        # Calculate exponential moving averages
-        df[f'ema_{self.short_window}'] = df['close'].ewm(span=self.short_window).mean()
-        df[f'ema_{self.long_window}'] = df['close'].ewm(span=self.long_window).mean()
-        
-        # Calculate trend slopes
-        df = self._calculate_trend_slopes(df)
-        
-        # Calculate trend directions
-        df = self._calculate_trend_directions(df)
-        
-        # Calculate trend strength
-        df = self._calculate_trend_strength(df)
-        
-        # Calculate trend consistency
-        df = self._calculate_trend_consistency(df)
-        
-        # Calculate volatility features
-        df = self._calculate_volatility_features(df)
-        
-        # Calculate momentum indicators
-        df = self._calculate_momentum_indicators(df)
+        # 20-day volatility
+        df['volatility_20d'] = df['return_1d'].rolling(window=20, min_periods=20).std()
         
         return df
+
+    def _calculate_rsi(self, df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
+        """
+        Calculate Relative Strength Index (RSI)
         
-    except Exception as e:
-        logger.warning(f"Error calculating indicators: {e}")
-        return data
+        Args:
+            df (pd.DataFrame): Stock data
+            period (int): RSI period (default 14)
+            
+        Returns:
+            pd.DataFrame: Data with RSI
+        """
+        # Calculate price changes
+        delta = df['close'].diff()
+        
+        # Separate gains and losses
+        gains = delta.where(delta > 0, 0)
+        losses = -delta.where(delta < 0, 0)
+        
+        # Calculate average gains and losses
+        avg_gains = gains.rolling(window=period, min_periods=period).mean()
+        avg_losses = losses.rolling(window=period, min_periods=period).mean()
+        
+        # Calculate RS and RSI
+        rs = avg_gains / avg_losses
+        df['rsi'] = 100 - (100 / (1 + rs))
+        
+        # Fill NaN with 50 (neutral RSI)
+        df['rsi'] = df['rsi'].fillna(50)
+        
+        return df
+
+    def _calculate_macd(self, df: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.DataFrame:
+        """
+        Calculate MACD (Moving Average Convergence Divergence)
+        
+        Args:
+            df (pd.DataFrame): Stock data
+            fast (int): Fast EMA period (default 12)
+            slow (int): Slow EMA period (default 26)
+            signal (int): Signal line period (default 9)
+            
+        Returns:
+            pd.DataFrame: Data with MACD and signal line
+        """
+        # Calculate EMAs
+        ema_fast = df['close'].ewm(span=fast, adjust=False).mean()
+        ema_slow = df['close'].ewm(span=slow, adjust=False).mean()
+        
+        # Calculate MACD line
+        df['macd'] = ema_fast - ema_slow
+        
+        # Calculate signal line
+        df['macd_signal'] = df['macd'].ewm(span=signal, adjust=False).mean()
+        
+        # Fill NaN with 0
+        df['macd'] = df['macd'].fillna(0)
+        df['macd_signal'] = df['macd_signal'].fillna(0)
+        
+        return df
+
+    def _calculate_all_technical_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculate all technical indicators in one pass
+        This is a helper method that combines all feature calculations
+        
+        Args:
+            df (pd.DataFrame): Stock data
+            
+        Returns:
+            pd.DataFrame: Data with all technical indicators
+        """
+        # Basic features (returns and volatility)
+        df = self._calculate_basic_features(df)
+        
+        # RSI
+        df = self._calculate_rsi(df)
+        
+        # MACD
+        df = self._calculate_macd(df)
+        
+        return df
+    
+    def calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculate all technical indicators for a single stock's data
+        
+        Args:
+            data (pd.DataFrame): Stock price data
+            
+        Returns:
+            pd.DataFrame: Data with all calculated indicators
+        """
+        try:
+            df = data.copy()
+            
+            # Calculate all technical indicators FIRST
+            df = self._calculate_all_technical_indicators(df)
+            
+            # Calculate moving averages
+            df[f'ma_{self.short_window}'] = df['close'].rolling(
+                window=self.short_window, min_periods=self.short_window
+            ).mean()
+            
+            df[f'ma_{self.long_window}'] = df['close'].rolling(
+                window=self.long_window, min_periods=self.long_window
+            ).mean()
+            
+            # Calculate additional moving averages
+            df['ma_10'] = df['close'].rolling(window=10, min_periods=10).mean()
+            df['ma_50'] = df['close'].rolling(window=50, min_periods=50).mean()
+            
+            # Calculate exponential moving averages
+            df[f'ema_{self.short_window}'] = df['close'].ewm(span=self.short_window).mean()
+            df[f'ema_{self.long_window}'] = df['close'].ewm(span=self.long_window).mean()
+            
+            # Calculate trend slopes
+            df = self._calculate_trend_slopes(df)
+            
+            # Calculate trend directions
+            df = self._calculate_trend_directions(df)
+            
+            # Calculate trend strength
+            df = self._calculate_trend_strength(df)
+            
+            # Calculate trend consistency
+            df = self._calculate_trend_consistency(df)
+            
+            # Calculate volatility features
+            df = self._calculate_volatility_features(df)
+            
+            # Calculate momentum indicators
+            df = self._calculate_momentum_indicators(df)
+            
+            return df
+            
+        except Exception as e:
+            logger.warning(f"Error calculating indicators: {e}")
+            return data
 
     def calculate_moving_averages(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
         """
@@ -250,49 +250,49 @@ def _calculate_all_technical_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         return processed_data
     
     def calculate_trend_features(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
-    """
-    Calculate trend features including slopes, directions, and strength
-    
-    Args:
-        data (Dict[str, pd.DataFrame]): Data with moving averages
+        """
+        Calculate trend features including slopes, directions, and strength
         
-    Returns:
-        Dict[str, pd.DataFrame]: Data with trend features
-    """
-    processed_data = {}
-    
-    for stock_code, stock_data in data.items():
-        try:
-            df = stock_data.copy()
+        Args:
+            data (Dict[str, pd.DataFrame]): Data with moving averages
             
-            # Calculate all technical indicators FIRST
-            df = self._calculate_all_technical_indicators(df)
-            
-            # Calculate trend slopes
-            df = self._calculate_trend_slopes(df)
-            
-            # Calculate trend directions
-            df = self._calculate_trend_directions(df)
-            
-            # Calculate trend strength
-            df = self._calculate_trend_strength(df)
-            
-            # Calculate trend consistency
-            df = self._calculate_trend_consistency(df)
-            
-            # Calculate volatility features
-            df = self._calculate_volatility_features(df)
-            
-            # Calculate momentum indicators
-            df = self._calculate_momentum_indicators(df)
-            
-            processed_data[stock_code] = df
-            
-        except Exception as e:
-            logger.warning(f"Error calculating trend features for {stock_code}: {e}")
-    
-    logger.info(f"Calculated trend features for {len(processed_data)} stocks")
-    return processed_data
+        Returns:
+            Dict[str, pd.DataFrame]: Data with trend features
+        """
+        processed_data = {}
+        
+        for stock_code, stock_data in data.items():
+            try:
+                df = stock_data.copy()
+                
+                # Calculate all technical indicators FIRST
+                df = self._calculate_all_technical_indicators(df)
+                
+                # Calculate trend slopes
+                df = self._calculate_trend_slopes(df)
+                
+                # Calculate trend directions
+                df = self._calculate_trend_directions(df)
+                
+                # Calculate trend strength
+                df = self._calculate_trend_strength(df)
+                
+                # Calculate trend consistency
+                df = self._calculate_trend_consistency(df)
+                
+                # Calculate volatility features
+                df = self._calculate_volatility_features(df)
+                
+                # Calculate momentum indicators
+                df = self._calculate_momentum_indicators(df)
+                
+                processed_data[stock_code] = df
+                
+            except Exception as e:
+                logger.warning(f"Error calculating trend features for {stock_code}: {e}")
+        
+        logger.info(f"Calculated trend features for {len(processed_data)} stocks")
+        return processed_data
     
     def _calculate_trend_slopes(self, df: pd.DataFrame) -> pd.DataFrame:
         """
