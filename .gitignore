@@ -55,3 +55,6 @@ Thumbs.db
 
 # Models
 models/
+
+# outputs
+output/
