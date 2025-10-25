@@ -403,7 +403,7 @@ def save_predictions_as_csv(predictions: dict[str, dict[str, any]], output_path:
             output_path += '.csv'
     
     # Save to CSV
-    df.to_csv(output_path, index=False, encoding='utf-8')
+    df.to_csv("/app/output/predictions.csv", index=False, encoding='utf-8')
     
     return output_path
 
