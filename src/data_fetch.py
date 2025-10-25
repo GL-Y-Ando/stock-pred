@@ -106,6 +106,8 @@ volume_column = "Volume"
 threshold = 50000
 
 # --- Processing ---
+deleted_codes = []  # 削除されたコードを記録
+
 for filename in os.listdir(price_data_dir):
     if not filename.lower().endswith(".csv"):
         continue  # skip non-csv files
@@ -123,6 +125,10 @@ for filename in os.listdir(price_data_dir):
         median_volume = df[volume_column].median()
 
         if pd.isna(median_volume) or median_volume <= threshold:
+            # コード（拡張子なし）を記録
+            code = filename.replace('.csv', '')
+            deleted_codes.append(code)
+            
             os.remove(file_path)
             print(f"Deleted {filename}: median volume = {median_volume}")
         else:
@@ -130,3 +136,17 @@ for filename in os.listdir(price_data_dir):
 
     except Exception as e:
         print(f"Error processing {filename}: {e}")
+
+# stock_list.csvから削除されたコードの行を除外
+if deleted_codes:
+    print(f"\nRemoving {len(deleted_codes)} codes from stock_list.csv...")
+    list_csv_path = data_dir / "stock_list.csv"
+    list_df = pd.read_csv(list_csv_path)
+    original_count = len(list_df)
+    
+    list_df = list_df[~list_df["Code"].isin(deleted_codes)]
+    list_df.to_csv(list_csv_path, index=False)
+    
+    print(f"Updated stock_list.csv: {original_count} -> {len(list_df)} companies")
+else:
+    print("\nNo codes were deleted, stock_list.csv remains unchanged.")
