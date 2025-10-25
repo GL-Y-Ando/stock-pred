@@ -1,7 +1,7 @@
 {
   "data": {
-    "stock_list_path": "data/stock_list.csv",
-    "price_data_path": "data/price_data/",
+    "stock_list_path": "/app/data/stock_list.csv",
+    "price_data_path": "/app/data/price_data/",
     "train_ratio": 0.8,
     "validation_ratio": 0.1,
     "test_ratio": 0.1,

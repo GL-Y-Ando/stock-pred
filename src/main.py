@@ -383,13 +383,14 @@ class StockPredictionSystem:
             train_data, _ = self.prepare_training_data(price_data)
         
         # Train trend classification models
-        self.model_trainer.train_trend_models(train_data)
+        self.model_trainer.train_short_term_model(train_data)
+        self.model_trainer.train_long_term_model(train_data)
         
         # Train reversal prediction models
         self.model_trainer.train_reversal_models(train_data)
         
         # Save models
-        self.model_trainer.save_all_models()
+        self.model_trainer.save_models()
         
         self.logger.info("Model training completed")
         return {"status": "Training completed"}
