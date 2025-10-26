@@ -97,11 +97,6 @@ class Predictor:
             return False
         
         try:
-            if model_trainer and hasattr(model_trainer, 'models'):
-                # Load from trainer instance
-                self.models = model_trainer.models.copy()
-                logger.info(f"Loaded {len(self.models)} models from trainer")
-                return len(self.models) > 0
             
             # Load from disk
             model_names = [
@@ -156,7 +151,8 @@ class Predictor:
             trend_features = base_features + [
                 'short_trend_slope', 'long_trend_slope',
                 'short_trend_strength', 'long_trend_strength',
-                'trend_agreement', 'ma_convergence'
+                'trend_agreement', 'ma_convergence',
+                'price_volatility' # Ensure this is included if calculated
             ]
             
             # Filter features that exist in the data
@@ -439,6 +435,71 @@ class Predictor:
             logger.warning(f"Error estimating reversal confidence: {e}")
             return 0.5
     
+    def _calculate_bailout_point(self, data: pd.DataFrame, current_price: float, trend_direction: str) -> Optional[float]:
+        """
+        Calculate the bailout point based on recent volatility.
+        This is a stop-loss or invalidation point for the trend prediction.
+        
+        Args:
+            data (pd.DataFrame): Stock price data with features
+            current_price (float): The current closing price
+            trend_direction (str): The predicted trend ('+', '-', '0')
+            
+        Returns:
+            Optional[float]: The calculated bailout price
+        """
+        try:
+            # Get multipliers from config, with defaults
+            vol_multiplier = self.config.prediction.get('bailout_volatility_multiplier', 2.0)
+            ret_multiplier = self.config.prediction.get('bailout_return_multiplier', 3.0)
+            fixed_pct = self.config.prediction.get('bailout_fixed_pct', 0.08) # 8% as in user example
+            
+            bailout_offset = 0.0
+            
+            # 1. Try to use 'price_volatility' (rolling std dev of price from trend_analyzer)
+            if 'price_volatility' in data.columns and not pd.isna(data['price_volatility'].iloc[-1]):
+                bailout_offset = data['price_volatility'].iloc[-1] * vol_multiplier
+            
+            # 2. Fallback to 'volatility_20d' (std dev of returns)
+            elif 'volatility_20d' in data.columns and not pd.isna(data['volatility_20d'].iloc[-1]):
+                volatility_pct = data['volatility_20d'].iloc[-1]
+                bailout_offset = current_price * (volatility_pct * ret_multiplier)
+            
+            # 3. Last resort: a fixed percentage
+            else:
+                bailout_offset = current_price * fixed_pct
+
+            if pd.isna(bailout_offset) or bailout_offset <= 0.0:
+                 bailout_offset = current_price * fixed_pct
+
+            bailout_price = None
+            if trend_direction == '+':
+                # For an UPTREND, the bailout is a price DROP
+                bailout_price = current_price - bailout_offset
+            elif trend_direction == '-':
+                # For a DOWNTREND, the bailout is a price RISE
+                bailout_price = current_price + bailout_offset
+            else:
+                # For a SIDEWAYS trend, a bailout point isn't as clear.
+                return None # Return None for '0' trend
+
+            # Ensure bailout price is positive
+            return max(0.0, bailout_price) if bailout_price is not None else None
+        
+        except Exception as e:
+            logger.warning(f"Error calculating bailout point: {e}")
+            # Fallback to fixed percentage on error
+            try:
+                fixed_pct = self.config.prediction.get('bailout_fixed_pct', 0.08)
+                if trend_direction == '+':
+                    return max(0.0, current_price * (1 - fixed_pct))
+                elif trend_direction == '-':
+                    return current_price * (1 + fixed_pct)
+                else:
+                    return None
+            except:
+                return None # Final fallback
+
     def calculate_confidence(self, data: pd.DataFrame, prediction_type: str = 'short') -> float:
         """
         Calculate confidence rating for predictions
@@ -654,6 +715,10 @@ class Predictor:
         try:
             logger.info(f"Generating predictions for {stock_code}")
             
+            # Current market data
+            current_price = float(data['close'].iloc[-1]) if len(data) > 0 else 0.0
+            current_date = data['date'].iloc[-1] if 'date' in data.columns and len(data) > 0 else datetime.now()
+            
             # Basic trend predictions
             short_trend = self.predict_trend(data, 'short')
             long_trend = self.predict_trend(data, 'long')
@@ -666,9 +731,9 @@ class Predictor:
             short_confidence = self.calculate_confidence(data, 'short')
             long_confidence = self.calculate_confidence(data, 'long')
             
-            # Current market data
-            current_price = float(data['close'].iloc[-1]) if len(data) > 0 else 0.0
-            current_date = data['date'].iloc[-1] if 'date' in data.columns and len(data) > 0 else datetime.now()
+            # *** NEW: Calculate Bailout Points ***
+            short_bailout_point = self._calculate_bailout_point(data, current_price, short_trend['trend'])
+            long_bailout_point = self._calculate_bailout_point(data, current_price, long_trend['trend'])
             
             prediction_result = {
                 'stock_code': stock_code,
@@ -682,6 +747,10 @@ class Predictor:
                 # Reversal price predictions
                 'short_reversal_price': short_reversal['price'],
                 'long_reversal_price': long_reversal['price'],
+                
+                # *** NEW: Bailout points ***
+                'short_bailout_point': short_bailout_point,
+                'long_bailout_point': long_bailout_point,
                 
                 # Confidence ratings (0-100%)
                 'short_confidence': short_confidence,
@@ -917,6 +986,8 @@ if __name__ == "__main__":
             print(f"  Long Trend: {prediction.get('long_trend', 'N/A')}")
             print(f"  Short Reversal: ${prediction.get('short_reversal_price', 0):.2f}")
             print(f"  Long Reversal: ${prediction.get('long_reversal_price', 0):.2f}")
+            print(f"  Short Bailout: ${prediction.get('short_bailout_point', 0):.2f}")
+            print(f"  Long Bailout: ${prediction.get('long_bailout_point', 0):.2f}")
             print(f"  Short Confidence: {prediction.get('short_confidence', 0):.1f}%")
             print(f"  Long Confidence: {prediction.get('long_confidence', 0):.1f}%")
             
