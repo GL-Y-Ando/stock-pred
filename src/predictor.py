@@ -151,7 +151,8 @@ class Predictor:
             trend_features = base_features + [
                 'short_trend_slope', 'long_trend_slope',
                 'short_trend_strength', 'long_trend_strength',
-                'trend_agreement', 'ma_convergence' # Ensure this is included if calculated
+                'trend_agreement', 'ma_convergence',
+                'price_volatility' # *** ADDED THIS LINE ***
             ]
             
             # Filter features that exist in the data

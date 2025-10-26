@@ -150,7 +150,7 @@ class TrendAnalyzer:
         
         return df
     
-    def add_all_features(self, data: pd.DataFrame) -> pd.DataFrame:
+    def calculate_indicators(self, data: pd.DataFrame) -> pd.DataFrame:
         """
         Calculate all technical indicators for a single stock's data
         
@@ -195,6 +195,7 @@ class TrendAnalyzer:
             # Calculate trend consistency
             df = self._calculate_trend_consistency(df)
             
+            # *** ADDED THIS LINE ***
             # Calculate volatility features
             df = self._calculate_volatility_features(df)
             
@@ -206,7 +207,95 @@ class TrendAnalyzer:
         except Exception as e:
             logger.warning(f"Error calculating indicators: {e}")
             return data
-   
+
+    def calculate_moving_averages(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+        """
+        Calculate moving averages for all stocks
+        
+        Args:
+            data (Dict[str, pd.DataFrame]): Stock price data
+            
+        Returns:
+            Dict[str, pd.DataFrame]: Data with moving averages
+        """
+        processed_data = {}
+        
+        for stock_code, stock_data in data.items():
+            try:
+                df = stock_data.copy()
+                
+                # Calculate short-term moving average (5-day)
+                df[f'ma_{self.short_window}'] = df['close'].rolling(
+                    window=self.short_window, min_periods=self.short_window
+                ).mean()
+                
+                # Calculate long-term moving average (25-day)
+                df[f'ma_{self.long_window}'] = df['close'].rolling(
+                    window=self.long_window, min_periods=self.long_window
+                ).mean()
+                
+                # Calculate additional moving averages for context
+                df['ma_10'] = df['close'].rolling(window=10, min_periods=10).mean()
+                df['ma_50'] = df['close'].rolling(window=50, min_periods=50).mean()
+                
+                # Calculate exponential moving averages
+                df[f'ema_{self.short_window}'] = df['close'].ewm(span=self.short_window).mean()
+                df[f'ema_{self.long_window}'] = df['close'].ewm(span=self.long_window).mean()
+                
+                processed_data[stock_code] = df
+                
+            except Exception as e:
+                logger.warning(f"Error calculating moving averages for {stock_code}: {e}")
+        
+        logger.info(f"Calculated moving averages for {len(processed_data)} stocks")
+        return processed_data
+    
+    def calculate_trend_features(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+        """
+        Calculate trend features including slopes, directions, and strength
+        
+        Args:
+            data (Dict[str, pd.DataFrame]): Data with moving averages
+            
+        Returns:
+            Dict[str, pd.DataFrame]: Data with trend features
+        """
+        processed_data = {}
+        
+        for stock_code, stock_data in data.items():
+            try:
+                df = stock_data.copy()
+                
+                # Calculate all technical indicators FIRST
+                df = self._calculate_all_technical_indicators(df)
+                
+                # Calculate trend slopes
+                df = self._calculate_trend_slopes(df)
+                
+                # Calculate trend directions
+                df = self._calculate_trend_directions(df)
+                
+                # Calculate trend strength
+                df = self._calculate_trend_strength(df)
+                
+                # Calculate trend consistency
+                df = self._calculate_trend_consistency(df)
+                
+                # *** ADDED THIS LINE ***
+                # Calculate volatility features
+                df = self._calculate_volatility_features(df)
+                
+                # Calculate momentum indicators
+                df = self._calculate_momentum_indicators(df)
+                
+                processed_data[stock_code] = df
+                
+            except Exception as e:
+                logger.warning(f"Error calculating trend features for {stock_code}: {e}")
+        
+        logger.info(f"Calculated trend features for {len(processed_data)} stocks")
+        return processed_data
+    
     def _calculate_trend_slopes(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Calculate slopes of moving averages (trend indicators)
@@ -356,6 +445,7 @@ class TrendAnalyzer:
         
         return df
     
+    # *** ADDED THIS ENTIRE FUNCTION ***
     def _calculate_volatility_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Calculate volatility-based features
@@ -366,7 +456,7 @@ class TrendAnalyzer:
         Returns:
             pd.DataFrame: Data with volatility features
         """
-        # Price volatility
+        # Price volatility (rolling std dev of the price itself)
         df['price_volatility'] = df['close'].rolling(
             window=self.volatility_window
         ).std()
