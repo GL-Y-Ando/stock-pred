@@ -119,8 +119,7 @@ class StockPredictionSystem:
         featured_data = {}
         for symbol, data in price_data.items():
             if len(data) >= self.config.data.min_data_points:
-                # Use the single, consolidated feature method
-                featured_data[symbol] = self.trend_analyzer.add_all_features(data) 
+                featured_data[symbol] = self.trend_analyzer.calculate_indicators(data) 
 
         self.logger.info("Splitting data for training, validation and testing...")
         train_data, validation_data, test_data = self.data_manager.split_data(
@@ -184,7 +183,7 @@ class StockPredictionSystem:
         self.logger.info("Adding features to price data for prediction...")
         featured_data = {}
         for symbol, data in price_data.items():
-            featured_data[symbol] = self.trend_analyzer.add_all_features(data)
+            featured_data[symbol] = self.trend_analyzer.calculate_indicators(data)
 
         self.logger.info(f"Generating batch predictions for {len(featured_data)} stocks...")
         # Predict on all stocks at once
@@ -353,8 +352,8 @@ def save_predictions_as_csv(predictions: dict[str, dict[str, any]], output_path:
                 'long_trend': None,
                 'short_reversal_price': None,
                 'long_reversal_price': None,
-                'short_bailout_point': None,  # <-- ADDED
-                'long_bailout_point': None,   # <-- ADDED
+                'short_bailout_point': None,
+                'long_bailout_point': None,
                 'short_confidence': None,
                 'long_confidence': None,
                 'current_price': None,
@@ -370,8 +369,8 @@ def save_predictions_as_csv(predictions: dict[str, dict[str, any]], output_path:
                 'long_trend': prediction.get('long_trend'),
                 'short_reversal_price': prediction.get('short_reversal_price'),
                 'long_reversal_price': prediction.get('long_reversal_price'),
-                'short_bailout_point': prediction.get('short_bailout_point'),  # <-- ADDED
-                'long_bailout_point': prediction.get('long_bailout_point'),   # <-- ADDED
+                'short_bailout_point': prediction.get('short_bailout_point'),
+                'long_bailout_point': prediction.get('long_bailout_point'),
                 'short_confidence': prediction.get('short_confidence'),
                 'long_confidence': prediction.get('long_confidence'),
                 'current_price': prediction.get('current_price'),
@@ -450,7 +449,6 @@ def main():
                     print(f"  Long trend: {pred['long_trend']}")
                     print(f"  Short reversal: ${pred['short_reversal_price']:.2f}")
                     print(f"  Long reversal: ${pred['long_reversal_price']:.2f}")
-                    # ADDED THE NEXT TWO LINES FOR BAILOUT POINTS
                     if pred.get('short_bailout_point') is not None:
                         print(f"  Short Bailout: ${pred['short_bailout_point']:.2f}")
                     if pred.get('long_bailout_point') is not None:
