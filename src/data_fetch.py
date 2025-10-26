@@ -144,6 +144,26 @@ if deleted_codes:
     original_count = len(list_df)
     
     list_df = list_df[~list_df["Code"].isin(deleted_codes)]
+
+    median_volumes = {}
+    for filename in os.listdir(price_data_dir):
+        if not filename.lower().endswith(".csv"):
+            continue
+        code = filename.replace('.csv', '')
+        if code in list_df["Code"].values:
+            file_path = os.path.join(price_data_dir, filename)
+            try:
+                df = pd.read_csv(file_path)
+                if volume_column in df.columns:
+                    median_volumes[code] = df[volume_column].median()
+            except Exception as e:
+                print(f"Error reading {filename} for sorting: {e}")
+
+    # Add median volume column and sort
+    list_df['MedianVolume'] = list_df['Code'].map(median_volumes)
+    list_df = list_df.sort_values('MedianVolume', ascending=False)
+    list_df = list_df.drop('MedianVolume', axis=1)  # Remove helper column
+    
     list_df.to_csv(list_csv_path, index=False)
     
     print(f"Updated stock_list.csv: {original_count} -> {len(list_df)} companies")

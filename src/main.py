@@ -93,12 +93,12 @@ class StockPredictionSystem:
         
         # Load price data for all stocks (limited to first 50 for testing)
         #Limited data version
-        if False:
-            limited_stocks = stock_list["Code"].head(50).tolist()
+        if True:
+            limited_stocks = stock_list["Code"].head(100).tolist()
             price_data = self.data_manager.load_price_data(limited_stocks)
 
         #Full data version
-        if True:
+        if False:
             stocks = stock_list["Code"].tolist()
             price_data = self.data_manager.load_price_data(stocks)
         
@@ -393,7 +393,7 @@ def save_predictions_as_csv(predictions: dict[str, dict[str, any]], output_path:
             output_path += '.csv'
     
     # Save to CSV
-    df.to_csv(output_path, index=False, encoding='utf-8')
+    df.to_csv("/app/output/predictions.csv", index=False, encoding='utf-8')
     
     return output_path
 
