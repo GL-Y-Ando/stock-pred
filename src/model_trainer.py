@@ -386,17 +386,22 @@ class ModelTrainer:
             logger.error("TensorFlow not available for model training")
             return
         
-        logger.info("Training short-term trend model")
-        
-        # Prepare training data
+        logger.info("Preparing training data for short-term model")
         training_data = self.prepare_training_data(data)
-        
-        if 'short_trend_classifier' not in training_data:
-            logger.error("No data prepared for short-term trend model")
-            return
-        
         X_train = training_data['short_trend_classifier']['X']
         y_train = training_data['short_trend_classifier']['y']
+        
+        # Prepare validation data
+        validation_set = None
+        if validation_data:
+            logger.info("Preparing validation data for short-term model")
+            val_prep = self.prepare_training_data(validation_data)
+            if 'short_trend_classifier' in val_prep and len(val_prep['short_trend_classifier']['X']) > 0:
+                X_val = val_prep['short_trend_classifier']['X']
+                y_val = val_prep['short_trend_classifier']['y']
+                y_val_categorical = y_val + 1  # Convert labels
+                validation_set = (X_val, y_val_categorical)
+                logger.info(f"Using chronological validation set with {len(X_val)} samples.")
         
         if len(X_train) == 0:
             logger.error("No training sequences available for short-term model")
@@ -417,11 +422,15 @@ class ModelTrainer:
             X_train, y_train_categorical,
             epochs=self.config.model.epochs,
             batch_size=self.config.model.batch_size,
-            validation_split=0.2,
+            
+            # --- THIS IS THE KEY CHANGE ---
+            # Replace 'validation_split=0.2' with 'validation_data'
+            validation_data=validation_set, 
+            # --- END CHANGE ---
+            
             callbacks=callbacks_list,
             verbose=1
         )
-        
         # Store model and history
         self.models['short_trend_classifier'] = model
         self.model_history['short_trend_classifier'] = history.history

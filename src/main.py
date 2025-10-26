@@ -123,12 +123,17 @@ class StockPredictionSystem:
                 # Use the single, consolidated feature method
                 featured_data[symbol] = self.trend_analyzer.add_all_features(data) 
 
-        self.logger.info("Splitting data for training...")
-        # Use your DataManager's existing split method
-        train_data, val_data, test_data = self.data_manager.split_data(featured_data)
-
-        self.logger.info(f"Training data prepared for {len(train_data)} stocks")
-        return train_data, test_data # Or return all three
+        self.logger.info("Splitting data for training, validation and testing...")
+        train_data, validation_data, test_data = self.data_manager.split_data(
+            processed_data,
+            train_ratio=self.config.data.train_ratio,
+            validation_ratio=self.config.data.validation_ratio
+        )
+        
+        self.logger.info(f"Data split - Train: {len(train_data)}, Val: {len(validation_data)}, Test: {len(test_data)}")
+        
+        # Return all three sets
+        return train_data, validation_data, test_data
     
     def train_models(self, train_data=None):
         """
@@ -144,11 +149,9 @@ class StockPredictionSystem:
             train_data, _ = self.prepare_training_data(price_data)
         
         # Train trend classification models
-        self.model_trainer.train_short_term_model(train_data)
-        self.model_trainer.train_long_term_model(train_data)
-        
-        # Train reversal prediction models
-        self.model_trainer.train_reversal_models(train_data)
+        self.model_trainer.train_short_term_model(train_data, validation_data)
+        self.model_trainer.train_long_term_model(train_data, validation_data)
+        self.model_trainer.train_reversal_models(train_data, validation_data)
         
         # Save models
         self.model_trainer.save_models()
