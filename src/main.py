@@ -75,7 +75,6 @@ class StockPredictionSystem:
         self.model_trainer = ModelTrainer(self.config)
         self.predictor = Predictor(self.config)
         self.predictor.set_dependencies(self.trend_analyzer, self.data_manager)
-        self.logger.info("Stock Prediction System initialized")
         
         # Get logger after logging is configured
         self.logger = logging.getLogger(__name__)
@@ -93,12 +92,12 @@ class StockPredictionSystem:
         
         # Load price data for all stocks (limited to first 50 for testing)
         #Limited data version
-        if True:
+        if False:
             limited_stocks = stock_list["Code"].head(100).tolist()
             price_data = self.data_manager.load_price_data(limited_stocks)
 
         #Full data version
-        if False:
+        if True:
             stocks = stock_list["Code"].tolist()
             price_data = self.data_manager.load_price_data(stocks)
         
@@ -125,7 +124,7 @@ class StockPredictionSystem:
 
         self.logger.info("Splitting data for training, validation and testing...")
         train_data, validation_data, test_data = self.data_manager.split_data(
-            processed_data,
+            featured_data,
             train_ratio=self.config.data.train_ratio,
             validation_ratio=self.config.data.validation_ratio
         )
@@ -146,7 +145,7 @@ class StockPredictionSystem:
         
         if train_data is None:
             stock_list, price_data = self.load_data()
-            train_data, _ = self.prepare_training_data(price_data)
+            train_data, validation_data, test_data = self.prepare_training_data(price_data)
         
         # Train trend classification models
         self.model_trainer.train_short_term_model(train_data, validation_data)
@@ -190,9 +189,6 @@ class StockPredictionSystem:
         self.logger.info(f"Generating batch predictions for {len(featured_data)} stocks...")
         # Predict on all stocks at once
         predictions = self.predictor.batch_predict(featured_data)
-                
-        # Store the prediction
-        predictions[stock_code] = prediction
                 
         logger.info(f"Generated predictions for {len(price_data)} stocks")
         return predictions
@@ -249,7 +245,7 @@ class StockPredictionSystem:
             stock_list, price_data = self.load_data()
             
             # 2. Prepare training data
-            train_data, test_data = self.prepare_training_data(price_data)
+            train_data, validation_data, test_data = self.prepare_training_data(price_data)
             
             # 3. Train models
             self.train_models(train_data)

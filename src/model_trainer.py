@@ -375,7 +375,7 @@ class ModelTrainer:
         
         return model
     
-    def train_short_term_model(self, data: Dict[str, pd.DataFrame]):
+    def train_short_term_model(self, data: Dict[str, pd.DataFrame], validation_data: Dict[str, pd.DataFrame] = None):
         """
         Train short-term trend prediction model
         
@@ -422,12 +422,7 @@ class ModelTrainer:
             X_train, y_train_categorical,
             epochs=self.config.model.epochs,
             batch_size=self.config.model.batch_size,
-            
-            # --- THIS IS THE KEY CHANGE ---
-            # Replace 'validation_split=0.2' with 'validation_data'
             validation_data=validation_set, 
-            # --- END CHANGE ---
-            
             callbacks=callbacks_list,
             verbose=1
         )
@@ -437,7 +432,7 @@ class ModelTrainer:
         
         logger.info("Short-term trend model training completed")
     
-    def train_long_term_model(self, data: Dict[str, pd.DataFrame]):
+    def train_long_term_model(self, data: Dict[str, pd.DataFrame], validation_data: Dict[str, pd.DataFrame] = None):
         """
         Train long-term trend prediction model
         
@@ -473,13 +468,24 @@ class ModelTrainer:
         
         # Set up callbacks
         callbacks_list = self._create_callbacks('long_trend_model')
+
+        validation_set = None
+        if validation_data:
+            logger.info("Preparing validation data for long-term model")
+            val_prep = self.prepare_training_data(validation_data)
+            if 'long_trend_classifier' in val_prep and len(val_prep['long_trend_classifier']['X']) > 0:
+                X_val = val_prep['long_trend_classifier']['X']
+                y_val = val_prep['long_trend_classifier']['y']
+                y_val_categorical = y_val + 1  # Convert labels
+                validation_set = (X_val, y_val_categorical)
+                logger.info(f"Using chronological validation set with {len(X_val)} samples.")
         
         # Train model
         history = model.fit(
             X_train, y_train_categorical,
             epochs=self.config.model.epochs,
             batch_size=self.config.model.batch_size,
-            validation_split=0.2,
+            validation_split=validation_set,
             callbacks=callbacks_list,
             verbose=1
         )
@@ -490,7 +496,7 @@ class ModelTrainer:
         
         logger.info("Long-term trend model training completed")
     
-    def train_reversal_models(self, data: Dict[str, pd.DataFrame]):
+    def train_reversal_models(self, data: Dict[str, pd.DataFrame], validation_data: Dict[str, pd.DataFrame] = None):
         """
         Train reversal price prediction models
         
@@ -505,28 +511,35 @@ class ModelTrainer:
         
         # Prepare training data
         training_data = self.prepare_training_data(data)
+
+        val_prep = {}
+        if validation_data:
+            logger.info("Preparing validation data for reversal models")
+            val_prep = self.prepare_training_data(validation_data)
         
         # Train short reversal model
         if 'short_reversal_regressor' in training_data:
             self._train_reversal_model(
                 training_data['short_reversal_regressor'],
-                'short_reversal_regressor'
+                'short_reversal_regressor',
+                val_prep.get('short_reversal_regressor')
             )
         
         # Train long reversal model
         if 'long_reversal_regressor' in training_data:
             self._train_reversal_model(
                 training_data['long_reversal_regressor'],
-                'long_reversal_regressor'
+                'long_reversal_regressor',
+                val_prep.get('long_reversal_regressor')
             )
         
         # Train confidence estimator
         if 'confidence_estimator' in training_data:
-            self._train_confidence_model(training_data['confidence_estimator'])
+            self._train_confidence_model(training_data['confidence_estimator'], val_prep.get('confidence_estimator'))
         
         logger.info("Reversal models training completed")
     
-    def _train_reversal_model(self, training_data: Dict[str, np.ndarray], model_name: str):
+    def _train_reversal_model(self, training_data: Dict[str, np.ndarray], model_name: str, validation_set_data: Dict[str, pd.DataFrame] = None):
         """
         Train a single reversal prediction model
         
@@ -547,13 +560,19 @@ class ModelTrainer:
         
         # Set up callbacks
         callbacks_list = self._create_callbacks(model_name)
+
+        #Prepare validation data
+        validation_set = None
+        if validation_set_data and len(validation_set_data['X']) > 0:
+            validation_set = (validation_set_data['X'], validation_set_data['y'])
+            logger.info(f"Using validation set with {len(validation_set[0])} samples for {model_name}.")
         
         # Train model
         history = model.fit(
             X_train, y_train,
             epochs=self.config.model.epochs,
             batch_size=self.config.model.batch_size,
-            validation_split=0.2,
+            validation_split=validation_set,
             callbacks=callbacks_list,
             verbose=1
         )
@@ -564,7 +583,7 @@ class ModelTrainer:
         
         logger.info(f"{model_name} training completed")
     
-    def _train_confidence_model(self, training_data: Dict[str, np.ndarray]):
+    def _train_confidence_model(self, training_data: Dict[str, np.ndarray], validation_set_data: Dict[str, pd.DataFrame] = None):
         """
         Train confidence estimation model
         
@@ -584,13 +603,19 @@ class ModelTrainer:
         
         # Set up callbacks
         callbacks_list = self._create_callbacks('confidence_estimator')
+
+        #Prepare validation data
+        validation_set = None
+        if validation_set_data and len(validation_set_data['X']) > 0:
+            validation_set = (validation_set_data['X'], validation_set_data['y'])
+            logger.info(f"Using validation set with {len(validation_set[0])} samples for confidence_estimator.")
         
         # Train model
         history = model.fit(
             X_train, y_train,
             epochs=self.config.model.epochs // 2,  # Fewer epochs for confidence model
             batch_size=self.config.model.batch_size,
-            validation_split=0.2,
+            validation_split=validation_set,
             callbacks=callbacks_list,
             verbose=1
         )
