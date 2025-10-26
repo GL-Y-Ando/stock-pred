@@ -353,6 +353,8 @@ def save_predictions_as_csv(predictions: dict[str, dict[str, any]], output_path:
                 'long_trend': None,
                 'short_reversal_price': None,
                 'long_reversal_price': None,
+                'short_bailout_point': None,  # <-- ADDED
+                'long_bailout_point': None,   # <-- ADDED
                 'short_confidence': None,
                 'long_confidence': None,
                 'current_price': None,
@@ -368,6 +370,8 @@ def save_predictions_as_csv(predictions: dict[str, dict[str, any]], output_path:
                 'long_trend': prediction.get('long_trend'),
                 'short_reversal_price': prediction.get('short_reversal_price'),
                 'long_reversal_price': prediction.get('long_reversal_price'),
+                'short_bailout_point': prediction.get('short_bailout_point'),  # <-- ADDED
+                'long_bailout_point': prediction.get('long_bailout_point'),   # <-- ADDED
                 'short_confidence': prediction.get('short_confidence'),
                 'long_confidence': prediction.get('long_confidence'),
                 'current_price': prediction.get('current_price'),
@@ -441,10 +445,16 @@ def main():
             for symbol, pred in list(predictions.items())[:5]:
                 if 'error' not in pred:
                     print(f"\n{symbol}:")
+                    print(f"  Current Price: ${pred['current_price']:.2f}")
                     print(f"  Short trend: {pred['short_trend']}")
                     print(f"  Long trend: {pred['long_trend']}")
-                    print(f"  Short reversal: {pred['short_reversal_price']:.2f}")
-                    print(f"  Long reversal: {pred['long_reversal_price']:.2f}")
+                    print(f"  Short reversal: ${pred['short_reversal_price']:.2f}")
+                    print(f"  Long reversal: ${pred['long_reversal_price']:.2f}")
+                    # ADDED THE NEXT TWO LINES FOR BAILOUT POINTS
+                    if pred.get('short_bailout_point') is not None:
+                        print(f"  Short Bailout: ${pred['short_bailout_point']:.2f}")
+                    if pred.get('long_bailout_point') is not None:
+                        print(f"  Long Bailout: ${pred['long_bailout_point']:.2f}")
                     print(f"  Confidence: {pred['short_confidence']:.2f}% / {pred['long_confidence']:.2f}%")
                 else:
                     print(f"\n{symbol}: {pred['error']}")

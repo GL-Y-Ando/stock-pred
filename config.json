@@ -1,7 +1,7 @@
 {
   "data": {
-    "stock_list_path": "data/stock_list.csv",
-    "price_data_path": "data/price_data/",
+    "stock_list_path": "/app/data/stock_list.csv",
+    "price_data_path": "/app/data/price_data/",
     "train_ratio": 0.8,
     "validation_ratio": 0.1,
     "test_ratio": 0.1,
@@ -18,7 +18,10 @@
   },
   "prediction": {
     "confidence_threshold": 0.7,
-    "ensemble_size": 3
+    "ensemble_size": 3,
+    "bailout_volatility_multiplier": 2.0,
+    "bailout_return_multiplier": 3.0,
+    "bailout_fixed_pct": 0.08
   },
   "system": {
     "log_level": "INFO",
