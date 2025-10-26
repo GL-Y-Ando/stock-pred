@@ -238,6 +238,7 @@ class DataManager:
         
         for col in price_columns:
             data[col] = pd.to_numeric(data[col], errors='coerce')
+            data[col] = data[col].astype(np.float32)
         
         # Remove rows with missing price data
         data = data.dropna(subset=['open', 'high', 'low', 'close'])
