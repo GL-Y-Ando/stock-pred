@@ -74,6 +74,8 @@ class StockPredictionSystem:
         self.trend_analyzer = TrendAnalyzer(self.config)
         self.model_trainer = ModelTrainer(self.config)
         self.predictor = Predictor(self.config)
+        self.predictor.set_dependencies(self.trend_analyzer, self.data_manager)
+        self.logger.info("Stock Prediction System initialized")
         
         # Get logger after logging is configured
         self.logger = logging.getLogger(__name__)
@@ -113,24 +115,25 @@ class StockPredictionSystem:
             Tuple of (train_data, test_data)
         """
         self.logger.info("Preparing training data...")
-        
-        # Add technical indicators and features
-        processed_data = {}
+        # src/main.py - prepare_training_data
+        self.logger.info("Adding features to price data...")
+        featured_data = {}
         for symbol, data in price_data.items():
             if len(data) >= self.config.data.min_data_points:
-                processed_data[symbol] = self.trend_analyzer.calculate_indicators(data)
+                # Use the single, consolidated feature method
+                featured_data[symbol] = self.trend_analyzer.add_all_features(data) 
+
+        self.logger.info("Splitting data for training, validation and testing...")
+        train_data, validation_data, test_data = self.data_manager.split_data(
+            processed_data,
+            train_ratio=self.config.data.train_ratio,
+            validation_ratio=self.config.data.validation_ratio
+        )
         
-        # Split data for training and testing
-        train_data = {}
-        test_data = {}
+        self.logger.info(f"Data split - Train: {len(train_data)}, Val: {len(validation_data)}, Test: {len(test_data)}")
         
-        for symbol, data in processed_data.items():
-            split_index = int(len(data) * self.config.data.train_ratio)
-            train_data[symbol] = data[:split_index].copy()
-            test_data[symbol] = data[split_index:].copy()
-        
-        self.logger.info(f"Training data prepared for {len(train_data)} stocks")
-        return train_data, test_data
+        # Return all three sets
+        return train_data, validation_data, test_data
     
     def train_models(self, train_data=None):
         """
@@ -146,11 +149,9 @@ class StockPredictionSystem:
             train_data, _ = self.prepare_training_data(price_data)
         
         # Train trend classification models
-        self.model_trainer.train_short_term_model(train_data)
-        self.model_trainer.train_long_term_model(train_data)
-        
-        # Train reversal prediction models
-        self.model_trainer.train_reversal_models(train_data)
+        self.model_trainer.train_short_term_model(train_data, validation_data)
+        self.model_trainer.train_long_term_model(train_data, validation_data)
+        self.model_trainer.train_reversal_models(train_data, validation_data)
         
         # Save models
         self.model_trainer.save_models()
@@ -176,34 +177,23 @@ class StockPredictionSystem:
         logger.info(f"Loaded price data for {len(price_data)} stocks")
         
         # Load trained models into predictor
-        models_loaded = self.predictor.load_models(self.model_trainer)
+        models_loaded = self.predictor.load_models()
         logger.info(f"Loaded {models_loaded} models from disk" if models_loaded else "No models loaded, using fallback methods")
         
         predictions = {}
         
-        for stock_code, stock_data in price_data.items():
-            try:
-                # Process data through the analysis pipeline
-                # First calculate moving averages
-                processed_data = {stock_code: stock_data}
-                ma_data = self.trend_analyzer.calculate_moving_averages(processed_data)
+        self.logger.info("Adding features to price data for prediction...")
+        featured_data = {}
+        for symbol, data in price_data.items():
+            featured_data[symbol] = self.trend_analyzer.add_all_features(data)
+
+        self.logger.info(f"Generating batch predictions for {len(featured_data)} stocks...")
+        # Predict on all stocks at once
+        predictions = self.predictor.batch_predict(featured_data)
                 
-                # Then calculate all trend features
-                trend_data = self.trend_analyzer.calculate_trend_features(ma_data)
+        # Store the prediction
+        predictions[stock_code] = prediction
                 
-                # Get the processed data for this stock
-                analyzed_data = trend_data[stock_code]
-                
-                # Generate complete prediction using the predictor
-                prediction = self.predictor.predict_stock(analyzed_data, stock_code)
-                
-                # Store the prediction
-                predictions[stock_code] = prediction
-                
-            except Exception as e:
-                logger.error(f"Error predicting {stock_code}: {e}")
-                predictions[stock_code] = str(e)
-        
         logger.info(f"Generated predictions for {len(price_data)} stocks")
         return predictions
     def update_models(self):
