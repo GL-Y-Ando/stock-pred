@@ -33,7 +33,7 @@ else:
     print(res.json()["message"])
     sys.exit(1)
 
-date = "20250501"  # You can make this configurable too
+date = datetime.date.today().strftime('%Y%m%d')
 
 params = {}
 params["date"] = date

@@ -148,12 +148,6 @@ class Predictor:
                 'rsi', 'macd', 'macd_signal'
             ]
             
-            trend_features = base_features + [
-                'short_trend_slope', 'long_trend_slope',
-                'short_trend_strength', 'long_trend_strength',
-                'trend_agreement', 'ma_convergence'
-            ]
-            
             # Filter features that exist in the data
             available_features = [col for col in trend_features if col in data.columns]
             
@@ -513,39 +507,11 @@ class Predictor:
         try:
             # Use neural network confidence estimator if available
             if 'confidence_estimator' in self.models:
-                try:
-                    # The confidence_estimator model was trained on 11 base features,
-                    # not the 17 trend features. We must prepare its data separately.
-                    base_features = [
-                        'open', 'high', 'low', 'close', 'volume',
-                        'return_1d', 'volatility_5d', 'volatility_20d',
-                        'rsi', 'macd', 'macd_signal'
-                    ]
-
-                    if len(data) < self.lookback_period:
-                        logger.warning("Insufficient data for confidence_estimator")
-                        base_confidence = 0.5
-                    else:
-                        # Filter features that exist in the data
-                        available_features = [col for col in base_features if col in data.columns]
-
-                        if not available_features:
-                            base_confidence = 0.5
-                        else:
-                            # Extract features and handle missing values
-                            feature_data = data[available_features].ffill().fillna(0)
-
-                            # Get the most recent sequence
-                            sequence = feature_data.tail(self.lookback_period).values
-
-                            # Reshape for model input: (1, timesteps, features)
-                            input_data = sequence.reshape(1, sequence.shape[0], sequence.shape[1])
-
-                            confidence_pred = self.models['confidence_estimator'].predict(input_data, verbose=0)
-                            base_confidence = float(confidence_pred[0][0])
-
-                except Exception as e:
-                    logger.error(f"Error during confidence_estimator prediction: {e}")
+                input_data = self.prepare_prediction_data(data)  # <-- This is now correct!
+                if input_data is not None:
+                    confidence_pred = self.models['confidence_estimator'].predict(input_data, verbose=0)
+                    base_confidence = float(confidence_pred[0][0])
+                else:
                     base_confidence = 0.5
             else:
                 base_confidence = 0.5
