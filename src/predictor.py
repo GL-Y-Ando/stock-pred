@@ -112,7 +112,7 @@ class Predictor:
                 model_path = self.config.get_model_path(model_name)
                 try:
                     if os.path.exists(model_path):
-                        self.models[model_name] = keras.models.load_model(model_path)
+                        self.models[model_name] = keras.models.load_model(model_path, compile=False)
                         loaded_count += 1
                         logger.info(f"Loaded {model_name}")
                 except Exception as e:
@@ -512,15 +512,43 @@ class Predictor:
         """
         try:
             # Use neural network confidence estimator if available
-            if 'confidence_estimator' in self.models:
-                input_data = self.prepare_prediction_data(data)
-                if input_data is not None:
-                    confidence_pred = self.models['confidence_estimator'].predict(input_data, verbose=0)
-                    base_confidence = float(confidence_pred[0][0])
-                else:
+        if 'confidence_estimator' in self.models:
+            try:
+                # The confidence_estimator model was trained on 11 base features,
+                # not the 17 trend features. We must prepare its data separately.
+                base_features = [
+                    'open', 'high', 'low', 'close', 'volume',
+                    'return_1d', 'volatility_5d', 'volatility_20d',
+                    'rsi', 'macd', 'macd_signal'
+                ]
+
+                if len(data) < self.lookback_period:
+                    logger.warning("Insufficient data for confidence_estimator")
                     base_confidence = 0.5
-            else:
+                else:
+                    # Filter features that exist in the data
+                    available_features = [col for col in base_features if col in data.columns]
+
+                    if not available_features:
+                         base_confidence = 0.5
+                    else:
+                        # Extract features and handle missing values
+                        feature_data = data[available_features].ffill().fillna(0)
+
+                        # Get the most recent sequence
+                        sequence = feature_data.tail(self.lookback_period).values
+
+                        # Reshape for model input: (1, timesteps, features)
+                        input_data = sequence.reshape(1, sequence.shape[0], sequence.shape[1])
+
+                        confidence_pred = self.models['confidence_estimator'].predict(input_data, verbose=0)
+                        base_confidence = float(confidence_pred[0][0])
+
+            except Exception as e:
+                logger.error(f"Error during confidence_estimator prediction: {e}")
                 base_confidence = 0.5
+        else:
+            base_confidence = 0.5
             
             # Adjust confidence based on data quality factors
             confidence_factors = []
