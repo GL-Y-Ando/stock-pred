@@ -72,6 +72,9 @@ class PredictionConfig:
     update_frequency: str = "daily"
     ensemble_size: int = 5
     monte_carlo_samples: int = 1000
+    bailout_volatility_multiplier: float = 2.0
+    bailout_return_multiplier: float = 3.0
+    bailout_fixed_pct: float = 0.08
     
     # Trend detection settings
     trend_threshold: float = 0.001
