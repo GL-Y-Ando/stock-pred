@@ -149,7 +149,7 @@ class Predictor:
             ]
             
             # Filter features that exist in the data
-            available_features = [col for col in trend_features if col in data.columns]
+            available_features = [col for col in base_features if col in data.columns]
             
             if not available_features:
                 logger.warning("No features available for prediction")
@@ -443,9 +443,9 @@ class Predictor:
         """
         try:
             # Get multipliers from config, with defaults
-            vol_multiplier = self.config.prediction.get('bailout_volatility_multiplier', 2.0)
-            ret_multiplier = self.config.prediction.get('bailout_return_multiplier', 3.0)
-            fixed_pct = self.config.prediction.get('bailout_fixed_pct', 0.08) # 8% as in user example
+            vol_multiplier = self.config.prediction.bailout_volatility_multiplier
+            ret_multiplier = self.config.prediction.bailout_return_multiplier
+            fixed_pct = self.config.prediction.bailout_fixed_pct
             
             bailout_offset = 0.0
             
@@ -483,7 +483,7 @@ class Predictor:
             logger.warning(f"Error calculating bailout point: {e}")
             # Fallback to fixed percentage on error
             try:
-                fixed_pct = self.config.prediction.get('bailout_fixed_pct', 0.08)
+                fixed_pct = self.config.prediction.bailout_fixed_pct
                 if trend_direction == '+':
                     return max(0.0, current_price * (1 - fixed_pct))
                 elif trend_direction == '-':
