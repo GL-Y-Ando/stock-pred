@@ -281,7 +281,7 @@ def parse_arguments():
     
     parser.add_argument(
         '--config',
-        default='config.json',
+        default='/app/config.json',
         help='Path to configuration file (default: config.json)'
     )
     
